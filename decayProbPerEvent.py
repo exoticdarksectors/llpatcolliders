@@ -5,6 +5,8 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 from tqdm import tqdm
 from scipy.integrate import quad
+from plottingFunctions import plot_tube_shape,plot_tube_interactive
+
 
 # Speed of light in m/s
 SPEED_OF_LIGHT = 299792458.0  # m/s
@@ -419,9 +421,12 @@ if __name__ == "__main__":
     # Create sample CSV if needed
     sample_csv = "LLP.csv"
     # create_sample_csv(sample_csv, n_events=500)
+    # Plot the tube
     
     # Set origin
     origin = [0, 0, 0]
+    plot_tube_shape(mesh, path_3d, tube_radius, origin,Z_POSITION)
+    # exit()
     
     # Single lifetime analysis
     print("\n" + "="*50)
@@ -506,7 +511,7 @@ if __name__ == "__main__":
     # Plot 4: Exclusion
     ax4 = axes[1, 1]
     ax4.loglog(lifetimes * 3E8, scan_results['exclusion'], 
-                 'm-', linewidth=2,label="mQ")
+                 color='blue', linewidth=2,label="mQ")
     ax4.set_xlabel('Lifetime (m)')
     ax4.set_ylabel('BR')
     # ax4.set_title('Fraction of Events with >1% Decay Probability')
@@ -518,12 +523,18 @@ if __name__ == "__main__":
     externalLines["MATHUSLA"] = np.loadtxt("external/MATHUSLA.csv",delimiter=",")
     externalLines["CODEX"] = np.loadtxt("external/CODEX.csv",delimiter=",")
     externalLines["ANUBIS"] = np.loadtxt("external/ANUBIS.csv",delimiter=",")
+    externalLines["ANUBISOpt"] = np.loadtxt("external/ANUBISOpt.csv",delimiter=",")
+    externalLines["ANUBISCons"] = np.loadtxt("external/ANUBISUpdateCons.csv",delimiter=",")
     ax4.loglog(externalLines["MATHUSLA"][:,0],externalLines["MATHUSLA"][:,1],
                  color="green", linewidth=2,label="MATHUSLA")
     ax4.loglog(externalLines["CODEX"][:,0],externalLines["CODEX"][:,1],
                  color="cyan", linewidth=2,label="CODEX b")
     ax4.loglog(externalLines["ANUBIS"][:,0],externalLines["ANUBIS"][:,1],
                  color="purple", linewidth=2,label="ANUBIS")
+    ax4.loglog(externalLines["ANUBISOpt"][:,0],externalLines["ANUBISOpt"][:,1],
+                 color="purple", linewidth=2,linestyle="--",label="ANUBISOpt")
+    ax4.loglog(externalLines["ANUBISCons"][:,0],externalLines["ANUBISCons"][:,1],
+                 color="magenta", linewidth=2,linestyle="--",label="ANUBISCons")
     plt.legend()
 
     plt.savefig('event_exclusion_vs_lifetime.png', dpi=150)
