@@ -25,6 +25,7 @@ P_CUT   = 0.600    # GeV/c — minimum electron momentum
 SEP_MIN = 0.001    # m — minimum separation at detector (1 mm)
 SEP_MAX = 1.0     # m — maximum separation at detector (10 cm)
 
+outString = "1GeV"
 
 # ============================================================
 # Two-body decay acceptance (analytical)
@@ -566,7 +567,7 @@ print(f"  Cuts: p_e > {P_CUT*1000:.0f} MeV/c, "
 # Main
 # ============================================================
 if __name__ == "__main__":
-    sample_csv = "LLP.csv"
+    sample_csv = "LLP1GeV.csv"
     origin = [0, 0, 0]
     
     geo_cache = cache_geometry(sample_csv, mesh_fiducial, origin)
@@ -682,7 +683,7 @@ if __name__ == "__main__":
         plt.colorbar(h[3], ax=ax3, label='Weighted counts')
         
         plt.tight_layout()
-        plt.savefig('separation_histogram.png', dpi=150)
+        plt.savefig('separation_histogram'+outString+'.png', dpi=150)
         plt.show()
         
         # Print summary
@@ -771,10 +772,10 @@ if __name__ == "__main__":
     ax4.legend(fontsize=8, loc='upper right')
     
     plt.tight_layout()
-    plt.savefig('exclusion_2body.png', dpi=150)
+    plt.savefig('exclusion_2body'+outString+'.png', dpi=150)
     plt.show()
     
     df_results.to_csv("particle_decay_results_2body.csv", index=False)
     event_df.to_csv("event_decay_statistics_2body.csv", index=False)
     print("\nResults saved.")
-    print("Plots: exclusion_2body.png, separation_histogram.png")
+    print("Plots: exclusion_2body"+outString+".png, separation_histogram"+outString+".png")
