@@ -547,7 +547,7 @@ for x, y in correctedVert:
         ((x - 11908.8279764855) / 1000, (y + 13591.106147774964) / 1000))
 
 Z_POSITION = 22
-path_3d = np.array([[x, y, Z_POSITION] for x, y in correctedVertWithShift])
+path_3d = np.array([[x, Z_POSITION,y] for x, y in correctedVertWithShift])
 
 # Build fiducial volume mesh
 print("Building fiducial volume mesh...")
@@ -567,7 +567,7 @@ print(f"  Cuts: p_e > {P_CUT*1000:.0f} MeV/c, "
 # Main
 # ============================================================
 if __name__ == "__main__":
-    sample_csv = "LLP1GeV.csv"
+    sample_csv = "LLP.csv"
     origin = [0, 0, 0]
     
     geo_cache = cache_geometry(sample_csv, mesh_fiducial, origin)
