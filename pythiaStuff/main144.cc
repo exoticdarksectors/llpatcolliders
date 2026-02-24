@@ -181,6 +181,7 @@ int main(int argc, char* argv[]) {
   pythia.settings.addWord("Main:rivetRunName", "");
   pythia.settings.addWVec("Main:rivetAnalyses", {});
   pythia.settings.addWVec("Main:rivetPreload", {});
+  pythia.settings.addMode("LLP:pdgId", 6000113, true, false, 0, 0);
 
   // Read the command files.
   for (int iCmnd = 0; iCmnd < (int)cmnds.size(); ++iCmnd)
@@ -289,9 +290,10 @@ int main(int argc, char* argv[]) {
   // Loop over events.
   std::cout << "here" << std::endl;
   auto startAllEvents = std::chrono::high_resolution_clock::now();
+  int llpId = pythia.mode("LLP:pdgId");
   ofstream myfile;
-  myfile.open ("LLP.csv");
-  myfile << "event,\tid,\tpt,\teta,\tphi,\tmomentum,\tmass\n";
+  myfile.open (out + ".csv");
+  myfile << "event,id,pt,eta,phi,momentum,mass\n";
   for ( int iEvent = 0; iEvent < nEvent; ++iEvent ) {
     auto startThisEvent = std::chrono::high_resolution_clock::now();
 
@@ -322,25 +324,24 @@ int main(int argc, char* argv[]) {
     if (writeHepmc) hepmc.writeNextEvent(pythia);
 #endif
 
-    // Write to ROOT file output.
+    // Write LLP to CSV (always active, no ROOT required).
+    for (int iPrt = 0; iPrt < pythia.event.size(); ++iPrt) {
+      Particle& prt = pythia.event[iPrt];
+      if (abs(prt.id()) != llpId) continue;
+      myfile << iEvent << ",\t" << prt.id() << ",\t" << prt.pT() << ",\t"
+             << prt.eta() << ",\t" << prt.phi() << ",\t" << prt.pAbs()
+             << ",\t" << prt.m() << "\n";
+    }
+
+    // Write to ROOT TTree (optional, requires -DPY8ROOT at compile time).
 #ifdef PY8ROOT
     if (writeRoot) {
       vector<RootParticle> prts;
       for (int iPrt = 0; iPrt < pythia.event.size(); ++iPrt) {
         Particle& prt = pythia.event[iPrt];
-
-        // Any particle cuts can be placed here. Here, only final
-        // state particles are kept.
-        // if (!prt.isFinal()) continue;
-        if (!abs(prt.id()) == 6000113) continue;
-        if (abs(prt.id()) == 6000113){
-        myfile << iEvent << ",\t" << prt.id() << ",\t" << prt.pT() << ",\t" << prt.eta() << ",\t" << prt.phi() << ",\t" << prt.pAbs() <<  ",\t" << prt.m()<< "\n";
-        }
-
-        // Push back the ROOT particle.
+        if (abs(prt.id()) != llpId) continue;
         prts.push_back(RootParticle(prt));
       }
-      // Fill the ROOT event and tree.
       evt->fill(pythia.info, prts, tree);
     }
 #endif

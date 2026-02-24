@@ -1,13 +1,15 @@
 import numpy as np
 import pandas as pd
 import trimesh
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 from scipy.integrate import quad
 
 # Speed of light in m/s
 SPEED_OF_LIGHT = 299792458.0  # m/s
-M_ELECTRON = 0.000511  # GeV/c²
+M_DAUGHTER = 0.10566  # GeV/c² (muon mass, matching generator decay a → μ⁺μ⁻)
 
 # ============================================================
 # Tunnel cross-section definition (Position C measurements)
@@ -25,20 +27,18 @@ P_CUT   = 0.600    # GeV/c — minimum electron momentum
 SEP_MIN = 0.001    # m — minimum separation at detector (1 mm)
 SEP_MAX = 1.0     # m — maximum separation at detector (10 cm)
 
-outString = "1GeV"
-
 # ============================================================
 # Two-body decay acceptance (analytical)
 # ============================================================
 #
-# LLP (mass M, momentum p_LLP) → e+ e-
+# LLP (mass M, momentum p_LLP) → μ+ μ-
 #
-# Rest frame: E* = M/2,  p* = sqrt(M²/4 - m_e²)
+# Rest frame: E* = M/2,  p* = sqrt(M²/4 - m_μ²)
 # Isotropic in cosθ*, φ*
 #
 # Lab frame (boost along LLP direction, m_e → 0 limit):
 #   E_{1,2}  = γ M/2 (1 ± β cosθ*)
-#   |p|_{1,2} ≈ E_{1,2}  (since E >> m_e)
+#   |p|_{1,2} ≈ E_{1,2}  (since E >> m_μ)
 #
 # Opening angle:
 #   cos(θ_12) = 1 - 2 / [γ²(1 - β² cos²θ*)]
@@ -65,7 +65,7 @@ def compute_c_upper(gamma, beta, mass, p_cut=P_CUT):
     
     Forward requirement: both electrons forward → |cosθ*| < β
     """
-    E_min = np.sqrt(p_cut**2 + M_ELECTRON**2)
+    E_min = np.sqrt(p_cut**2 + M_DAUGHTER**2)
     c_P = (1.0 - 2.0 * E_min / (gamma * mass)) / beta
     c_P = min(c_P, 1.0)
     return min(c_P, beta)
@@ -362,7 +362,8 @@ def process_with_acceptance(csv_file, lifetime_seconds, geo_cache,
 
 
 def analyze_decay_vs_lifetime(csv_file, geo_cache, lifetime_range,
-                               p_cut=P_CUT, sep_min=SEP_MIN, sep_max=SEP_MAX):
+                               p_cut=P_CUT, sep_min=SEP_MIN, sep_max=SEP_MAX,
+                               xsec_fb=52E3, lumi_fb=3000):
     df_base = pd.read_csv(csv_file)
     n_events = df_base['event'].nunique()
     
@@ -397,8 +398,8 @@ def analyze_decay_vs_lifetime(csv_file, geo_cache, lifetime_range,
         results['mean_at_least_one_decay_prob'].append(mean_p1)
         results['mean_at_least_one_no_cuts'].append(mean_p1_nc)
         results['mean_both_decay_prob'].append(mean_both)
-        results['exclusion'].append(3 / (mean_p1 * 3000 * 52E3))
-        results['exclusion_no_cuts'].append(3 / (mean_p1_nc * 3000 * 52E3))
+        results['exclusion'].append(3 / (mean_p1 * lumi_fb * xsec_fb))
+        results['exclusion_no_cuts'].append(3 / (mean_p1_nc * lumi_fb * xsec_fb))
         results['mean_acceptance'].append(mean_acc)
     
     return results
@@ -567,7 +568,22 @@ print(f"  Cuts: p_e > {P_CUT*1000:.0f} MeV/c, "
 # Main
 # ============================================================
 if __name__ == "__main__":
-    sample_csv = "LLP.csv"
+    import argparse
+    import os
+    parser = argparse.ArgumentParser()
+    parser.add_argument("csv_file", nargs="?", default="LLP.csv")
+    parser.add_argument("--xsec", type=float, default=52E3,
+                        help="production cross-section in fb (default: 52e3 for bb̄)")
+    parser.add_argument("--lumi", type=float, default=3000,
+                        help="integrated luminosity in fb⁻¹ (default: 3000)")
+    parser.add_argument("--outdir", default="output",
+                        help="output directory for plots and CSVs (default: output)")
+    args = parser.parse_args()
+    os.makedirs(args.outdir, exist_ok=True)
+    sample_csv = args.csv_file
+    output_tag = os.path.basename(sample_csv).replace('.csv', '')
+    separation_plot_name = f"separation_histogram_{output_tag}.png"
+    exclusion_plot_name = f"exclusion_2body_{output_tag}.png"
     origin = [0, 0, 0]
     
     geo_cache = cache_geometry(sample_csv, mesh_fiducial, origin)
@@ -683,8 +699,7 @@ if __name__ == "__main__":
         plt.colorbar(h[3], ax=ax3, label='Weighted counts')
         
         plt.tight_layout()
-        plt.savefig('separation_histogram'+outString+'.png', dpi=150)
-        plt.show()
+        plt.savefig(os.path.join(args.outdir, separation_plot_name), dpi=150)
         
         # Print summary
         in_window = (seps >= SEP_MIN) & (seps <= SEP_MAX)
@@ -701,7 +716,8 @@ if __name__ == "__main__":
     print("="*50)
     
     lifetimes = np.logspace(-9.5, -4.5, 20)
-    scan = analyze_decay_vs_lifetime(sample_csv, geo_cache, lifetimes)
+    scan = analyze_decay_vs_lifetime(sample_csv, geo_cache, lifetimes,
+                                     xsec_fb=args.xsec, lumi_fb=args.lumi)
     
     # === Plotting ===
     fig, axes = plt.subplots(2, 2, figsize=(14, 10))
@@ -772,10 +788,9 @@ if __name__ == "__main__":
     ax4.legend(fontsize=8, loc='upper right')
     
     plt.tight_layout()
-    plt.savefig('exclusion_2body'+outString+'.png', dpi=150)
-    plt.show()
-    
-    df_results.to_csv("particle_decay_results_2body.csv", index=False)
-    event_df.to_csv("event_decay_statistics_2body.csv", index=False)
-    print("\nResults saved.")
-    print("Plots: exclusion_2body"+outString+".png, separation_histogram"+outString+".png")
+    plt.savefig(os.path.join(args.outdir, exclusion_plot_name), dpi=150)
+
+    df_results.to_csv(os.path.join(args.outdir, "particle_decay_results_2body.csv"), index=False)
+    event_df.to_csv(os.path.join(args.outdir, "event_decay_statistics_2body.csv"), index=False)
+    print("\nResults saved to", args.outdir)
+    print(f"Plots: {exclusion_plot_name}, {separation_plot_name}")

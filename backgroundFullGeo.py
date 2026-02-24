@@ -27,6 +27,8 @@ Compatible with: decayProbPerEvent_2body.py
 
 import numpy as np
 import trimesh
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from matplotlib.gridspec import GridSpec
 from scipy.integrate import quad

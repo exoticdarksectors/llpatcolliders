@@ -1,3 +1,11 @@
-g++ main144.cc -o main144 -w\
-	  -I../include -O2 -std=c++11 -pedantic -W -Wall -Wshadow -fPIC -pthread  -L../lib -Wl,-rpath,../lib -lpythia8 -ldl\
-	 main144Dct.so -L/opt/homebrew/Cellar/root/6.30.06/lib/root -Wl,-rpath,/opt/homebrew/Cellar/root/6.30.06/lib/root -lCore -stdlib=libc++ -pthread -std=c++17 -m64 -I/opt/homebrew/Cellar/root/6.30.06/include/root -L/opt/homebrew/Cellar/root/6.30.06/lib/root -lGui -lCore -lImt -lRIO -lNet -lHist -lGraf -lGraf3d -lGpad -lROOTVecOps -lTree -lTreePlayer -lRint -lPostscript -lMatrix -lPhysics -lMathCore -lThread -lMultiProc -lROOTDataFrame -Wl,-rpath,/opt/homebrew/Cellar/root/6.30.06/lib/root -stdlib=libc++ -lpthread -lm -ldl -DPY8ROOT
+#!/usr/bin/env bash
+# Compile main144 against Pythia8 only (no ROOT needed — output is LLP.csv).
+# ROOT output is ifdef-guarded in main144.cc; omitting -DPY8ROOT disables it cleanly.
+
+PYTHIA=/Users/fredi/sandbox-offline/pythia8315
+
+g++ main144.cc -o main144 -w \
+  -I${PYTHIA}/include \
+  -O2 -std=c++17 -fPIC -pthread \
+  -L${PYTHIA}/lib -Wl,-rpath,${PYTHIA}/lib \
+  -lpythia8 -ldl

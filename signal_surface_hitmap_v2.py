@@ -222,7 +222,7 @@ for x, y in correctedVert:
         ((x - 11908.8279764855) / 1000, (y + 13591.106147774964) / 1000))
 
 Z_POSITION = 22
-path_3d = np.array([[x, y, Z_POSITION] for x, y in correctedVertWithShift])
+path_3d = np.array([[x, Z_POSITION, y] for x, y in correctedVertWithShift])
 
 seg_lengths = np.array([np.linalg.norm(path_3d[i+1] - path_3d[i])
                          for i in range(len(path_3d)-1)])
@@ -440,7 +440,7 @@ def contiguous_efficiency(theta_values, weights, n_sectors=72):
 # =============================================================================
 # Main analysis
 # =============================================================================
-def run_analysis(csv_file, lifetime_seconds=None):
+def run_analysis(csv_file, lifetime_seconds=None, outdir="output"):
     origin = np.array([0.0, 0.0, 0.0])
 
     # --- Load CSV ---
@@ -819,7 +819,9 @@ def run_analysis(csv_file, lifetime_seconds=None):
                  f'{n_hits} hits, {weight_label}',
                  fontsize=13, fontweight='bold', y=1.01)
 
-    outname = csv_file.replace('.csv', '') + '_surface_hitmap_v2.png'
+    import os
+    basename = os.path.basename(csv_file).replace('.csv', '') + '_surface_hitmap_v2.png'
+    outname = os.path.join(outdir, basename)
     plt.savefig(outname, dpi=150, bbox_inches='tight', facecolor='white')
     print(f"\nSaved: {outname}")
     plt.close('all')
@@ -855,6 +857,12 @@ def run_analysis(csv_file, lifetime_seconds=None):
 
 # =============================================================================
 if __name__ == "__main__":
-    csv_file = sys.argv[1] if len(sys.argv) > 1 else "LLP.csv"
-    lifetime = float(sys.argv[2]) if len(sys.argv) > 2 else None
-    run_analysis(csv_file, lifetime_seconds=lifetime)
+    import argparse, os
+    parser = argparse.ArgumentParser()
+    parser.add_argument("csv_file", nargs="?", default="LLP.csv")
+    parser.add_argument("lifetime", nargs="?", type=float, default=None)
+    parser.add_argument("--outdir", default="output",
+                        help="output directory for plots (default: output)")
+    args = parser.parse_args()
+    os.makedirs(args.outdir, exist_ok=True)
+    run_analysis(args.csv_file, lifetime_seconds=args.lifetime, outdir=args.outdir)

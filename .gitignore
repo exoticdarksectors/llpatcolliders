@@ -1,0 +1,40 @@
+# ---- Pythia8 build artifacts -------------------------------------------
+pythiaStuff/main144
+pythiaStuff/main144Dct.h
+pythiaStuff/main144Dct.so
+pythiaStuff/main144Dct_rdict.pcm
+pythiaStuff/*.o
+pythiaStuff/*.d
+
+# ---- Generator output (regenerate with main144) -------------------------
+pythiaStuff/LLP.csv
+pythiaStuff/*.root
+pythiaStuff/*.hepmc
+pythiaStuff/*.log
+pythiaStuff/*.yoda
+
+# ---- Analysis output (regenerate with Python scripts) ------------------
+particle_decay_results*.csv
+*_surface_hitmap_v2.png
+*.png
+*.pdf
+*.log
+
+# ---- Python ------------------------------------------------------------
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.ipynb_checkpoints/
+
+# ---- Conda / virtual envs (if created inside repo) ---------------------
+env/
+venv/
+.conda/
+*.egg-info/
+
+# ---- macOS -------------------------------------------------------------
+.DS_Store
+.AppleDouble
+*.swp
+*.csv
