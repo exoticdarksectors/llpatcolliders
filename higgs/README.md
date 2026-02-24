@@ -26,7 +26,7 @@ Edit `sample_csv` and the external file paths in `__main__` as needed. The lifet
 
 ---
 
-### `background_fullgeo_mc.py` — Beam muon trident backgrounds
+### `background_trident.py` — Beam muon trident backgrounds
 
 Monte Carlo estimation of the beam muon trident background rate (μN → μNe⁺e⁻ in air) using the full tunnel geometry.
 
