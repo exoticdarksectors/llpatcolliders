@@ -1,31 +1,22 @@
 import numpy as np
 import pandas as pd
-import trimesh
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 from scipy.integrate import quad
 
-# Speed of light in m/s
-SPEED_OF_LIGHT = 299792458.0  # m/s
+from gargoyle_geometry import (
+    SPEED_OF_LIGHT, DETECTOR_THICKNESS,
+    calculate_decay_length, cache_geometry, mesh_fiducial,
+)
+
 M_ELECTRON = 0.000511  # GeV/c²
-
-# ============================================================
-# Tunnel cross-section definition (Position C measurements)
-# ============================================================
-TUNNEL_ALPHA = 2.90  # floor width (m)
-TUNNEL_BETA  = 3.15  # total height (m)
-TUNNEL_GAMMA = 2.90  # arch width at springline (m)
-TUNNEL_DELTA = 1.90  # arch height (m)
-TUNNEL_WALL_HEIGHT = TUNNEL_BETA - TUNNEL_DELTA  # 1.25m
-
-DETECTOR_THICKNESS = 0.24  # 24 cm
 
 # Analysis cuts
 P_CUT   = 0.600    # GeV/c — minimum electron momentum
 SEP_MIN = 0.001    # m — minimum separation at detector (1 mm)
-SEP_MAX = 1.0     # m — maximum separation at detector (10 cm)
+SEP_MAX = 1.0      # m — maximum separation at detector (10 cm)
 
-outString = "Small"
+outString = "1GeV"
 
 # ============================================================
 # Two-body decay acceptance (analytical)
@@ -169,143 +160,8 @@ def unweighted_decay_prob(entry_d, exit_d, decay_length):
 
 
 # ============================================================
-# Geometry functions
+# Processing functions
 # ============================================================
-
-def tunnel_profile_points(n_arch=32, n_wall=4, inset=0.0, inset_floor=False):
-    half_w = TUNNEL_GAMMA / 2 - inset
-    half_floor = TUNNEL_ALPHA / 2 - inset
-    wall_h = TUNNEL_WALL_HEIGHT
-    a = TUNNEL_GAMMA / 2 - inset
-    b = TUNNEL_DELTA - inset
-    floor_y = inset if inset_floor else 0.0
-    points = []
-    points.append([-half_floor, floor_y])
-    points.append([half_floor, floor_y])
-    for i in range(1, n_wall + 1):
-        frac = i / n_wall
-        y = floor_y + (wall_h - floor_y) * frac if inset_floor else frac * wall_h
-        x = half_floor + (half_w - half_floor) * frac
-        points.append([x, y])
-    for i in range(1, n_arch):
-        angle = np.pi * i / n_arch
-        x = a * np.cos(angle)
-        y = wall_h + b * np.sin(angle)
-        points.append([x, y])
-    for i in range(n_wall, 0, -1):
-        frac = i / n_wall
-        y = floor_y + (wall_h - floor_y) * frac if inset_floor else frac * wall_h
-        x = half_floor + (half_w - half_floor) * frac
-        points.append([-x, y])
-    points = np.array(points)
-    rect_area = TUNNEL_ALPHA * TUNNEL_WALL_HEIGHT
-    rect_cy = TUNNEL_WALL_HEIGHT / 2
-    a0 = TUNNEL_GAMMA / 2
-    b0 = TUNNEL_DELTA
-    ellipse_area = np.pi * a0 * b0 / 2
-    ellipse_cy = TUNNEL_WALL_HEIGHT + 4 * b0 / (3 * np.pi)
-    total_area = rect_area + ellipse_area
-    centroid_y = (rect_area * rect_cy + ellipse_area * ellipse_cy) / total_area
-    points[:, 1] -= centroid_y
-    return points
-
-
-def create_profile_mesh(path_points, profile_2d):
-    n_profile = len(profile_2d)
-    vertices = []
-    faces = []
-    for i in range(len(path_points)):
-        if i == 0:
-            tangent = path_points[1] - path_points[0]
-        elif i == len(path_points) - 1:
-            tangent = path_points[i] - path_points[i-1]
-        else:
-            tangent = path_points[i+1] - path_points[i-1]
-        tangent = tangent / np.linalg.norm(tangent)
-        if abs(tangent[1]) < 0.9:
-            world_up = np.array([0, 1, 0])
-        else:
-            world_up = np.array([0, 0, 1])
-        right = np.cross(tangent, world_up)
-        right = right / np.linalg.norm(right)
-        up = np.cross(right, tangent)
-        up = up / np.linalg.norm(up)
-        for j in range(n_profile):
-            offset = profile_2d[j, 0] * right + profile_2d[j, 1] * up
-            vertices.append(path_points[i] + offset)
-        if i > 0:
-            for j in range(n_profile):
-                v1 = (i-1) * n_profile + j
-                v2 = (i-1) * n_profile + (j + 1) % n_profile
-                v3 = i * n_profile + (j + 1) % n_profile
-                v4 = i * n_profile + j
-                faces.append([v1, v4, v3])
-                faces.append([v1, v3, v2])
-    center_start = len(vertices)
-    vertices.append(path_points[0].copy())
-    for j in range(n_profile):
-        faces.append([center_start, (j + 1) % n_profile, j])
-    center_end = len(vertices)
-    vertices.append(path_points[-1].copy())
-    last = (len(path_points) - 1) * n_profile
-    for j in range(n_profile):
-        faces.append([center_end, last + j, last + (j + 1) % n_profile])
-    return np.array(vertices), np.array(faces)
-
-
-def eta_phi_to_direction(eta, phi):
-    theta = 2 * np.arctan(np.exp(-eta))
-    dx = np.sin(theta) * np.cos(phi)
-    dy = np.sin(theta) * np.sin(phi)
-    dz = np.cos(theta)
-    return np.array([dx, dy, dz])
-
-
-def calculate_decay_length(momentum, mass, lifetime):
-    energy = np.sqrt(momentum**2 + mass**2)
-    beta = momentum / energy
-    gamma = energy / mass
-    return gamma * beta * SPEED_OF_LIGHT * lifetime
-
-
-# ============================================================
-# Geometry caching and processing
-# ============================================================
-
-def cache_geometry(csv_file, mesh, origin):
-    df = pd.read_csv(csv_file)
-    n = len(df)
-    origin = np.array(origin)
-    hits = np.zeros(n, dtype=bool)
-    entry_d = np.full(n, np.nan)
-    exit_d = np.full(n, np.nan)
-    momentum = df['momentum'].values
-    mass = df['mass'].values
-    energy = np.sqrt(momentum**2 + mass**2)
-    gamma = energy / mass
-    beta = momentum / energy
-    
-    print(f"Caching fiducial volume geometry for {n} particles...")
-    for idx, row in tqdm(df.iterrows(), total=n, desc="Ray-casting"):
-        direction = eta_phi_to_direction(row['eta'], row['phi'])
-        locations, _, _ = mesh.ray.intersects_location(
-            ray_origins=[origin], ray_directions=[direction])
-        if len(locations) >= 2:
-            hits[idx] = True
-            distances = sorted([np.linalg.norm(loc - origin) for loc in locations])
-            entry_d[idx] = distances[0]
-            exit_d[idx] = distances[1]
-    
-    n_hits = hits.sum()
-    print(f"  {n_hits} / {n} particles hit fiducial volume ({n_hits/n*100:.1f}%)")
-    if n_hits > 0:
-        print(f"  Mean path length: {(exit_d[hits] - entry_d[hits]).mean():.2f} m")
-    
-    return {
-        'hits': hits, 'entry_d': entry_d, 'exit_d': exit_d,
-        'gamma': gamma, 'beta': beta, 'momentum': momentum, 'mass': mass
-    }
-
 
 def process_with_acceptance(csv_file, lifetime_seconds, geo_cache,
                              p_cut=P_CUT, sep_min=SEP_MIN, sep_max=SEP_MAX):
@@ -446,8 +302,6 @@ def sample_separations(geo_cache, lifetime_seconds, n_samples_per_particle=100,
         path_length = exit_ - entry
         
         # Inverse CDF sampling of decay position within [entry, exit]
-        # CDF: F(d) = [exp(-entry/λ) - exp(-d/λ)] / [exp(-entry/λ) - exp(-exit/λ)]
-        # Inverse: d = -λ ln(exp(-entry/λ) - u·[exp(-entry/λ) - exp(-exit/λ)])
         u = rng.uniform(0, 1, n_samples_per_particle)
         exp_entry = np.exp(-entry / decay_length)
         exp_exit = np.exp(-exit_ / decay_length)
@@ -459,7 +313,6 @@ def sample_separations(geo_cache, lifetime_seconds, n_samples_per_particle=100,
         d_remaining = exit_ - d_samples
         
         # Weight: overall probability that the particle decays in the fiducial volume
-        # Each sample gets equal weight = P_decay / n_samples
         p_decay = exp_entry * (1 - np.exp(-path_length / decay_length))
         w = p_decay / n_samples_per_particle
         
@@ -467,7 +320,6 @@ def sample_separations(geo_cache, lifetime_seconds, n_samples_per_particle=100,
         cos_theta_star = rng.uniform(0, 1, n_samples_per_particle)
         
         # Compute opening angle
-        # cos(θ_12) = 1 - 2/(γ²(1 - β²cos²θ*))
         denom_angle = gamma**2 * (1 - beta**2 * cos_theta_star**2)
         cos_theta_12 = 1 - 2.0 / denom_angle
         cos_theta_12 = np.clip(cos_theta_12, -1, 1)
@@ -489,86 +341,15 @@ def sample_separations(geo_cache, lifetime_seconds, n_samples_per_particle=100,
 
 
 # ============================================================
-# Tunnel centerline
-# ============================================================
-
-correctedVert = [
-(-86.57954338701529, 0.1882163986665546  ),
-(-1731.590867740335, 3.764327973349282   ),
-(-3549.761278867689, 7.716872345365118   ),
-(-5887.408950317142, 12.798715109387558  ),
-(-8053.403266181902, -504.23173203003535 ),
-(-10046.991360867298, -1282.5065405198511),
-(-11783.350377373874, -2930.9057600491833),
-(-12913.652590171332, -4580.622494369192 ),
-(-13095.344153684957, -7536.749251839814 ),
-(-13099.610392054752, -9015.000846973791 ),
-(-13278.792403586143, -11101.567842600896),
-(-13372.39869252341, -13536.146959364076 ),
-(-13292.093029091975, -15710.234580371536),
-(-12779.140603923677, -17972.21925955668   ), 
-(-11659.12755425337, -19887.69754879509    ),
-(-10105.714877251532, -21630.204967658145  ),
-(-7512.845769209047, -23201.0590309365     ),
-(-5262.530506741277, -23466.820585854904   ),
-(-2751.72374851779, -23472.278861416264    ),
-(-241.41890069074725, -23651.64908934632   ),
-(1749.6596420124115, -23742.93404270002    ),
-(3827.568683300815, -23747.45123626804     ),
-(6078.6368113632525, -23752.344862633392   ),
-(8502.613071001502, -23844.570897980426    ),
-(11446.568501358292, -23764.01427935077    ),
-(13438.399909656131, -23594.431304151418   ),
-(15777.051401898476, -23251.689242178036   ),
-(18289.614846509525, -22648.455684448927   ),
-(20889.761655300477, -21697.58643838109    ),
-(23143.841245741598, -20659.00835053422    ),
-(25486.006110759066, -19098.88262197991    ),
-(27742.09334278597, -17364.656724658227    ),
-(28871.391734790544, -16062.763895075637   ),
-(30781.662703665817, -14153.873179790575   ),
-(32518.021720172394, -12505.473960261239   ),
-(34513.49197884447, -11075.029330388788    ),
-(36636.57295581305, -10427.47081077351     ),
-(38759.40297758341, -9866.868267342572     ),
-(41357.416667189485, -9655.12481884172     ),
-(43694.93886103982, -9703.684649697909     ),
-(46379.03018363646, -9666.041369964427     ),
-(49409.43967978114, -9629.150955825604     ),
-(51660.88424064092, -9503.610617914434     ),
-(54258.0195870532, -9596.213086058811      ),
-(57028.564975437745, -9602.236010816167    ),
-(59539.87364405768, -9433.782334008818     ),
-(62050.42944708294, -9526.196585754526     )]
-
-correctedVertWithShift = []
-for x, y in correctedVert:
-    correctedVertWithShift.append(
-        ((x - 11908.8279764855) / 1000, (y + 13591.106147774964) / 1000))
-
-Z_POSITION = 22
-path_3d = np.array([[x, Z_POSITION, y] for x, y in correctedVertWithShift])
-
-# Build fiducial volume mesh
-print("Building fiducial volume mesh...")
-profile_fiducial = tunnel_profile_points(inset=DETECTOR_THICKNESS, inset_floor=False)
-verts, faces = create_profile_mesh(path_3d, profile_fiducial)
-mesh_fiducial = trimesh.Trimesh(vertices=verts, faces=faces)
-if mesh_fiducial.volume < 0:
-    mesh_fiducial.invert()
-
-print(f"  Fiducial volume: {mesh_fiducial.volume:.1f} m³")
-print(f"  Detector thickness: {DETECTOR_THICKNESS*100:.0f} cm")
-print(f"  Cuts: p_e > {P_CUT*1000:.0f} MeV/c, "
-      f"{SEP_MIN*1000:.0f} mm < separation < {SEP_MAX*100:.0f} cm")
-
-
-# ============================================================
 # Main
 # ============================================================
 if __name__ == "__main__":
     sample_csv = "LLPSmall.csv"
     origin = [0, 0, 0]
+    
+    print(f"  Detector thickness: {DETECTOR_THICKNESS*100:.0f} cm")
+    print(f"  Cuts: p_e > {P_CUT*1000:.0f} MeV/c, "
+          f"{SEP_MIN*1000:.0f} mm < separation < {SEP_MAX*100:.0f} cm")
     
     geo_cache = cache_geometry(sample_csv, mesh_fiducial, origin)
     
@@ -589,14 +370,12 @@ if __name__ == "__main__":
         b = p_test / E
         c_P = compute_c_upper(g, b, test_mass)
         theta_min = 2.0 / g
-        d_min_sep = SEP_MIN / theta_min   # distance where min sep = θ_min
-        d_max_sep = SEP_MAX / theta_min   # distance where max sep = θ_min
-        # At 1m remaining, what is max sep from θ_12(cosθ*=0)?
+        d_min_sep = SEP_MIN / theta_min
+        d_max_sep = SEP_MAX / theta_min
         sep_at_1m = theta_min * 1.0
         print(f"{p_test:>8.0f} {g:>6.1f} {c_P:>7.4f} {theta_min*1000:>8.1f} mrad "
               f"{d_min_sep*100:>7.2f}cm {d_max_sep:>7.1f}m {sep_at_1m*100:>12.1f}cm")
     
-    # Show how max sep constrains high-γ particles
     print(f"\nMax sep cut effect: at d_remaining = 1m, θ_max = {SEP_MAX}m / 1m = 100 mrad")
     print("  → kills decays far from detector for low-γ (large opening angle)")
     print(f"  → for γ=1.67 (p=20 GeV): θ_min=1200 mrad >> 100 mrad → heavily constrained")
@@ -632,9 +411,8 @@ if __name__ == "__main__":
     if len(seps) > 0:
         fig_sep, axes_sep = plt.subplots(1, 3, figsize=(18, 5))
         
-        # (a) All separations, decay-probability weighted
         ax = axes_sep[0]
-        bins = np.linspace(0, 0.5, 100)  # 0 to 50 cm
+        bins = np.linspace(0, 0.5, 100)
         ax.hist(seps, bins=bins, weights=weights, color='steelblue',
                 edgecolor='black', linewidth=0.3, alpha=0.8)
         ax.axvline(SEP_MIN, color='red', linestyle='--', linewidth=2,
@@ -649,9 +427,8 @@ if __name__ == "__main__":
         ax.legend(fontsize=9)
         ax.set_xlim(0, 0.5)
         
-        # (b) Log-scale zoom to see the tails and cut region
         ax2 = axes_sep[1]
-        bins_log = np.logspace(-4, 1, 100)  # 0.1 mm to 10 m
+        bins_log = np.logspace(-4, 1, 100)
         ax2.hist(seps, bins=bins_log, weights=weights, color='steelblue',
                  edgecolor='black', linewidth=0.3, alpha=0.8)
         ax2.axvline(SEP_MIN, color='red', linestyle='--', linewidth=2,
@@ -665,7 +442,6 @@ if __name__ == "__main__":
         ax2.set_title('Log-scale separation\n(showing full range)')
         ax2.legend(fontsize=9)
         
-        # (c) Separation vs LLP momentum (2D)
         ax3 = axes_sep[2]
         mask_finite = np.isfinite(seps) & (seps > 0)
         h = ax3.hist2d(momenta[mask_finite], seps[mask_finite] * 100,
@@ -686,7 +462,6 @@ if __name__ == "__main__":
         plt.savefig('separation_histogram'+outString+'.png', dpi=150)
         plt.show()
         
-        # Print summary
         in_window = (seps >= SEP_MIN) & (seps <= SEP_MAX)
         frac_accepted = weights[in_window].sum() / weights.sum()
         print(f"  Fraction of decays in separation window: {frac_accepted:.3f}")
@@ -706,7 +481,6 @@ if __name__ == "__main__":
     # === Plotting ===
     fig, axes = plt.subplots(2, 2, figsize=(14, 10))
     
-    # Plot 1: Acceptance vs lifetime
     ax1 = axes[0, 0]
     ax1.semilogx(lifetimes * 1e9, scan['mean_acceptance'],
                  'b-', linewidth=2)
@@ -717,7 +491,6 @@ if __name__ == "__main__":
     ax1.grid(True, which="both", ls="-", alpha=0.2)
     ax1.set_ylim(0, 1.05)
     
-    # Plot 2: With vs without cuts
     ax2 = axes[0, 1]
     ax2.loglog(lifetimes * 1e9, scan['mean_at_least_one_decay_prob'],
                'r-', linewidth=2, label='With cuts')
@@ -729,7 +502,6 @@ if __name__ == "__main__":
     ax2.grid(True, which="both", ls="-", alpha=0.2)
     ax2.legend()
     
-    # Plot 3: Single particle
     ax3 = axes[1, 0]
     ax3.loglog(lifetimes * 1e9, scan['mean_single_particle_decay_prob'],
                'b-', linewidth=2, label='With cuts')
@@ -741,7 +513,6 @@ if __name__ == "__main__":
     ax3.grid(True, which="both", ls="-", alpha=0.2)
     ax3.legend()
     
-    # Plot 4: Exclusion curves
     ax4 = axes[1, 1]
     ax4.loglog(lifetimes * SPEED_OF_LIGHT, scan['exclusion'],
                color='blue', linewidth=2, label="milliQan (with cuts)")
