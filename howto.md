@@ -3,11 +3,13 @@
 ## One-time: build Pythia8 and main144
 
 ```fish
-cd /Users/fredi/sandbox-offline/pythia8315
-./configure --with-root=/opt/homebrew/Cellar/root/6.38.00
+# Build Pythia8 (adjust path to your local Pythia8 source):
+cd /path/to/pythia8315
+./configure                          # add --with-root=... if you want ROOT support
 make -j(sysctl -n hw.logicalcpu)
 
-cd /Users/fredi/sandbox-offline/llpatcolliders_MATT/llpatcolliders/pythiaStuff
+# Build main144 (set PYTHIA in make.sh to your Pythia8 install path):
+cd /path/to/llpatcolliders/pythiaStuff
 bash make.sh
 ```
 
