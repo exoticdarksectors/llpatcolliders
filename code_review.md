@@ -12,7 +12,7 @@
 
 ### 1.2 Portability
 
-- **E5** (`pythiaStuff/make.sh:5`) — Hardcoded local `PYTHIA=` path reduces portability. *Note: acceptable for a single-user research repo.*
+*(none remaining)*
 
 ## 2. Not introduced by us
 
@@ -57,6 +57,7 @@
 - ~~**W11**~~ — `((failed++))` → `((failed++)) || true` in parallel_produce.sh to prevent `set -e` abort on first job failure.
 - ~~**W12**~~ — Added `MAX_ROUNDS=200` and consecutive-zero-progress guard (3 rounds) to parallel_produce.sh. Script now aborts with an error message instead of looping forever.
 - ~~**W13**~~ — clean_production.sh now also cleans `*.root` fragments.
+- ~~**E5**~~ — `make.sh` no longer hardcodes a user-specific `PYTHIA=` path. Now resolves via `$PYTHIA8_DIR` > sibling `../pythia8315` > `/usr/local` fallback. `howto.md` uses generic placeholders.
 
 ## 4. ROOT audit (2026-02-25)
 

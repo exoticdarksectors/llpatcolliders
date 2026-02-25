@@ -64,5 +64,5 @@ Python packages:
 - `tqdm`
 
 Build/runtime:
-- Pythia8 (used by `pythiaStuff/main144.cc` and `pythiaStuff/make.sh`)
-- ROOT is not required for the default non-ROOT build path.
+- Pythia8 — `make.sh` auto-resolves via `$PYTHIA8_DIR` or a sibling `../pythia8315` directory.
+- ROOT is not required for the default build path (CSV-only output).

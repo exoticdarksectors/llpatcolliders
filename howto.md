@@ -8,8 +8,9 @@ cd /path/to/pythia8315
 ./configure                          # add --with-root=... if you want ROOT support
 make -j(sysctl -n hw.logicalcpu)
 
-# Build main144 (set PYTHIA in make.sh to your Pythia8 install path):
+# Build main144 (auto-finds Pythia8 via $PYTHIA8_DIR or sibling ../pythia8315):
 cd /path/to/llpatcolliders/pythiaStuff
+export PYTHIA8_DIR=/path/to/pythia8315  # only needed if not a sibling dir
 bash make.sh
 ```
 
