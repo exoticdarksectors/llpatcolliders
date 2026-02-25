@@ -22,18 +22,24 @@ CSV="${OUTDIR}/${NAME}.csv"
 TMP="${OUTDIR}/.${NAME}_part"
 
 # Initialize output CSV with header
-printf 'event,\tid,\tpt,\teta,\tphi,\tmomentum,\tmass\n' > "$CSV"
+printf 'event,id,pt,eta,phi,momentum,mass\n' > "$CSV"
 
 count=0
 round=0
 seed=0
 offset=0
+MAX_ROUNDS=200
+consec_empty=0
 
 echo "Target: $TARGET LLP rows | $NJOBS parallel jobs | $BATCH events/job/round"
 echo "Output: $CSV"
 
 while [ "$count" -lt "$TARGET" ]; do
     round=$((round + 1))
+    if [ "$round" -gt "$MAX_ROUNDS" ]; then
+        echo "ERROR: hit $MAX_ROUNDS rounds without reaching target. Aborting." >&2
+        exit 1
+    fi
     echo "--- Round $round (have $count / $TARGET LLPs) ---"
 
     # Launch parallel batch
@@ -46,20 +52,31 @@ while [ "$count" -lt "$TARGET" ]; do
 
     # Wait
     failed=0
-    for pid in "${pids[@]}"; do wait "$pid" || ((failed++)); done
+    for pid in "${pids[@]}"; do wait "$pid" || ((failed++)) || true; done
     if [ "$failed" -gt 0 ]; then echo "  WARNING: $failed job(s) failed"; fi
 
     # Append results with renumbered event IDs
     for i in $(seq $((seed - NJOBS + 1)) "$seed"); do
         f="${TMP}_${i}.csv"
         [ -f "$f" ] || continue
-        awk -F',\t' -v OFS=',\t' -v off="$offset" 'NR>1{$1=$1+off; print}' "$f" >> "$CSV"
-        last_evt=$(awk -F',\t' 'END{print $1+0}' "$f")
+        awk -F',[[:space:]]*' -v OFS=',' -v off="$offset" \
+            'NR>1{$1=$1+off; print $1,$2,$3,$4,$5,$6,$7}' "$f" >> "$CSV"
+        last_evt=$(awk -F',[[:space:]]*' 'NR>1{last=$1} END{print (NR>1 ? last : -1)+0}' "$f")
         offset=$((offset + last_evt + 1))
         rm -f "$f" "${TMP}_${i}.log"
     done
 
+    prev_count=$count
     count=$(tail -n +2 "$CSV" | wc -l | tr -d ' ')
+    if [ "$count" -eq "$prev_count" ]; then
+        consec_empty=$((consec_empty + 1))
+        if [ "$consec_empty" -ge 3 ]; then
+            echo "ERROR: 3 consecutive rounds with zero new LLPs. Check cmnd file or binary." >&2
+            exit 1
+        fi
+    else
+        consec_empty=0
+    fi
 done
 
 echo "Done: $count LLP rows in $CSV (after $round round(s), $seed total Pythia jobs)"

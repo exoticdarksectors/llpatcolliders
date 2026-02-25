@@ -281,6 +281,96 @@ def contiguous_efficiency(theta_values, weights, n_sectors=72):
     return arc_widths, arc_areas, best_eff, best_start_idx, sector_signal, sector_edges
 
 
+def adaptive_2d_efficiency(exit_s, exit_theta, weights,
+                           n_s_bins=40, n_theta_bins=36):
+    """
+    Greedy 2D connected region growing in (s, θ) space.
+
+    Starts from the highest-signal bin and iteratively annexes
+    the 8-connected neighbor with the largest signal weight.
+    θ wraps (periodic); s does not.
+
+    Returns
+    -------
+    cum_area : ndarray   — cumulative instrumented area (m²)
+    cum_eff  : ndarray   — cumulative signal efficiency (fraction)
+    region_at : dict      — {target_eff: set of (is, it) bin indices}
+    hist     : 2D array  — the signal histogram
+    s_edges, theta_edges : bin edges
+    """
+    import heapq
+
+    s_edges = np.linspace(0, total_length, n_s_bins + 1)
+    theta_edges = np.linspace(0, 2*np.pi, n_theta_bins + 1)
+
+    hist, _, _ = np.histogram2d(exit_s, exit_theta,
+                                bins=[s_edges, theta_edges],
+                                weights=weights)
+
+    # Area per bin (each bin is a strip of tunnel wall)
+    ds = total_length / n_s_bins
+    dtheta_frac = 1.0 / n_theta_bins           # fraction of perimeter
+    area_per_bin = dtheta_frac * perimeter * ds  # m²
+
+    # Start from highest-signal bin
+    start = np.unravel_index(np.argmax(hist), hist.shape)
+
+    region = set()
+    region.add(start)
+
+    # Max-heap (negate for max since heapq is min-heap)
+    # Entries: (-signal, is, it)
+    frontier = []
+    in_frontier = set()
+
+    def push_neighbors(si, ti):
+        for ds_ in (-1, 0, 1):
+            for dt_ in (-1, 0, 1):
+                if ds_ == 0 and dt_ == 0:
+                    continue
+                ns = si + ds_
+                nt = (ti + dt_) % n_theta_bins   # θ wraps
+                if 0 <= ns < n_s_bins:
+                    key = (ns, nt)
+                    if key not in region and key not in in_frontier:
+                        heapq.heappush(frontier, (-hist[ns, nt], ns, nt))
+                        in_frontier.add(key)
+
+    push_neighbors(*start)
+
+    cum_signal = [hist[start]]
+    cum_area = [area_per_bin]
+
+    # Snapshots at target efficiencies
+    targets_snap = {0.50, 0.60, 0.70, 0.80, 0.90, 0.95, 0.99}
+    region_at = {}
+
+    total_bins = n_s_bins * n_theta_bins
+
+    while frontier and len(region) < total_bins:
+        neg_sig, si, ti = heapq.heappop(frontier)
+        key = (si, ti)
+        if key in region:
+            continue
+        region.add(key)
+        push_neighbors(si, ti)
+
+        cum_signal.append(cum_signal[-1] + hist[si, ti])
+        cum_area.append(cum_area[-1] + area_per_bin)
+
+        # Check snapshot targets
+        eff_now = cum_signal[-1]
+        for tgt in list(targets_snap):
+            if eff_now >= tgt:
+                region_at[tgt] = region.copy()
+                targets_snap.discard(tgt)
+
+    cum_area = np.array(cum_area)
+    cum_eff = np.array(cum_signal)
+
+    return cum_area, cum_eff, region_at, hist, s_edges, theta_edges
+
+
 # =============================================================================
 # Main analysis
 # =============================================================================
@@ -289,6 +379,7 @@ def run_analysis(csv_file, lifetime_seconds=None, outdir="output"):
 
     # --- Load CSV ---
     df = pd.read_csv(csv_file)
+    df.columns = df.columns.str.strip()
     n = len(df)
     print(f"\nLoaded {n} particles from {csv_file}")
     print(f"  Events: {df['event'].nunique()}")
@@ -449,16 +540,46 @@ def run_analysis(csv_file, lifetime_seconds=None, outdir="output"):
         if i < len(z_lengths):
             print(f"{tgt:>5.0%} {z_lengths[i]:>10.0f} {z_lengths[i]/total_length:>11.0%}")
 
-    # =================================================================
-    # 2D histogram
-    # =================================================================
-    n_s_bins = 40
-    n_theta_bins = 36  # 10° per bin
-    s_edges = np.linspace(0, total_length, n_s_bins + 1)
-    theta_edges_2d = np.linspace(0, 2*np.pi, n_theta_bins + 1)
+    # --- Adaptive 2D contiguous efficiency ---
+    print(f"\n{'='*60}")
+    print("ADAPTIVE 2D CONTIGUOUS REGION (greedy region growing)")
+    print(f"{'='*60}")
 
-    exit_hist, _, _ = np.histogram2d(
-        exit_s, exit_theta, bins=[s_edges, theta_edges_2d], weights=weights_norm)
+    n_s_bins_2d = 40
+    n_theta_bins_2d = 36
+    adapt_area, adapt_eff, adapt_regions, adapt_hist, \
+        adapt_s_edges, adapt_theta_edges = \
+        adaptive_2d_efficiency(exit_s, exit_theta, weights_norm,
+                               n_s_bins_2d, n_theta_bins_2d)
+
+    adapt_area_for_target = {}
+    print(f"\n{'Eff':>6} {'Area (m²)':>10} {'% total':>8} {'~Cost':>8} "
+          f"{'Saving vs arc':>14}")
+    print("-" * 55)
+    for tgt in targets:
+        i_adapt = np.searchsorted(adapt_eff, tgt)
+        if i_adapt < len(adapt_area):
+            a_ad = adapt_area[i_adapt]
+            adapt_area_for_target[tgt] = a_ad
+            cost_ad = a_ad / 500 * 7
+            # Compare to fixed arc
+            saving = ''
+            if tgt in area_for_target:
+                a_fix = area_for_target[tgt]
+                pct = (1 - a_ad / a_fix) * 100
+                saving = f'{pct:+.0f}%'
+            print(f"{tgt:>5.0%} {a_ad:>10.0f} {a_ad/total_surface_area:>7.0%} "
+                  f"{'${:.1f}M'.format(cost_ad):>8} {saving:>14}")
+
+    # =================================================================
+    # 2D histogram (same binning as adaptive analysis)
+    # =================================================================
+    n_s_bins = n_s_bins_2d
+    n_theta_bins = n_theta_bins_2d
+    s_edges = adapt_s_edges
+    theta_edges_2d = adapt_theta_edges
+
+    exit_hist = adapt_hist  # already computed
     entry_hist, _, _ = np.histogram2d(
         entry_s, entry_theta, bins=[s_edges, theta_edges_2d], weights=weights_norm)
 
@@ -541,30 +662,76 @@ def run_analysis(csv_file, lifetime_seconds=None, outdir="output"):
                 fontsize=9, fontweight='bold', ha='right', va='center',
                 bbox=dict(facecolor='white', alpha=0.6, pad=2))
 
-    # ---- Panel 3: 80% contiguous region overlay ----
+    # ---- Panel 3: 80% adaptive region overlay ----
     ax = fig.add_subplot(gs[2, :])
     ax.pcolormesh(s_centers, th_centers, exit_hist.T,
                    cmap='hot', shading='auto', alpha=0.6)
-    # Draw the 80% contiguous angular band
-    if 0.80 in angle_for_target:
-        start_rad, width_rad = angle_for_target[0.80]
-        end_rad = start_rad + width_rad
-        start_deg = np.degrees(start_rad)
-        end_deg = np.degrees(end_rad)
-        a80 = area_for_target[0.80]
-        if end_deg <= 360:
-            ax.axhspan(start_deg, end_deg, color='green', alpha=0.25)
-            ax.axhline(y=start_deg, color='green', lw=2)
-            ax.axhline(y=end_deg, color='green', lw=2)
-        else:
-            ax.axhspan(start_deg, 360, color='green', alpha=0.25)
-            ax.axhspan(0, end_deg - 360, color='green', alpha=0.25)
-            ax.axhline(y=start_deg, color='green', lw=2)
-            ax.axhline(y=end_deg - 360, color='green', lw=2)
-        ax.set_title(f'80% Efficiency: contiguous {np.degrees(width_rad):.0f}° arc, '
-                     f'{a80:.0f} m² of {total_surface_area:.0f} m²')
+
+    # Overlay adaptive region at 80%
+    adapt_target_show = 0.80
+    if adapt_target_show in adapt_regions:
+        region_mask = np.zeros((n_s_bins, n_theta_bins), dtype=bool)
+        for (si, ti) in adapt_regions[adapt_target_show]:
+            region_mask[si, ti] = True
+        # Draw as green overlay
+        region_rgba = np.zeros((n_s_bins, n_theta_bins, 4))
+        region_rgba[region_mask, 1] = 0.8    # green
+        region_rgba[region_mask, 3] = 0.35   # alpha
+        ax.pcolormesh(s_edges, np.degrees(theta_edges_2d),
+                       region_rgba.transpose(1, 0, 2),
+                       shading='flat', zorder=3)
+        # Outline: draw edges of the region
+        ds_bin = s_edges[1] - s_edges[0]
+        dt_bin = np.degrees(theta_edges_2d[1] - theta_edges_2d[0])
+        for (si, ti) in adapt_regions[adapt_target_show]:
+            s0 = s_edges[si]
+            t0 = np.degrees(theta_edges_2d[ti])
+            # Check each of the 4 edges; draw if neighbor is outside region
+            for dsi, dti, edge in [
+                (-1, 0, 'bottom_s'), (1, 0, 'top_s'),
+                (0, -1, 'left_t'), (0, 1, 'right_t')]:
+                ns = si + dsi
+                nt = (ti + dti) % n_theta_bins
+                neighbor_outside = (ns < 0 or ns >= n_s_bins or
+                                    (ns, nt) not in adapt_regions[adapt_target_show])
+                if neighbor_outside:
+                    if edge == 'bottom_s':
+                        ax.plot([s0, s0], [t0, t0 + dt_bin],
+                                'g-', lw=0.8, zorder=4)
+                    elif edge == 'top_s':
+                        ax.plot([s0 + ds_bin, s0 + ds_bin],
+                                [t0, t0 + dt_bin], 'g-', lw=0.8, zorder=4)
+                    elif edge == 'left_t':
+                        ax.plot([s0, s0 + ds_bin], [t0, t0],
+                                'g-', lw=0.8, zorder=4)
+                    elif edge == 'right_t':
+                        ax.plot([s0, s0 + ds_bin],
+                                [t0 + dt_bin, t0 + dt_bin],
+                                'g-', lw=0.8, zorder=4)
+
+        a80_ad = adapt_area_for_target.get(adapt_target_show, 0)
+        a80_fix = area_for_target.get(adapt_target_show, 0)
+        saving = (1 - a80_ad / a80_fix) * 100 if a80_fix > 0 else 0
+        ax.set_title(
+            f'80% Efficiency — Adaptive: {a80_ad:.0f} m² vs '
+            f'Fixed arc: {a80_fix:.0f} m² '
+            f'({saving:.0f}% less area)')
     else:
         ax.set_title('80% Efficiency Region')
+
+    # Also show the fixed-arc band for comparison
+    if 0.80 in angle_for_target:
+        start_rad, width_rad = angle_for_target[0.80]
+        start_deg = np.degrees(start_rad)
+        end_deg = np.degrees(start_rad + width_rad)
+        if end_deg <= 360:
+            ax.axhline(y=start_deg, color='blue', lw=1.5, ls=':', alpha=0.6)
+            ax.axhline(y=end_deg, color='blue', lw=1.5, ls=':', alpha=0.6)
+        else:
+            ax.axhline(y=start_deg, color='blue', lw=1.5, ls=':', alpha=0.6)
+            ax.axhline(y=end_deg - 360, color='blue', lw=1.5, ls=':',
+                        alpha=0.6)
+
     ax.set_xlabel('Distance along tunnel (m)')
     ax.set_ylabel('Angle around profile (deg)')
     for angle_deg in boundary_angles_deg:
@@ -574,22 +741,37 @@ def run_analysis(csv_file, lifetime_seconds=None, outdir="output"):
                 fontweight='bold', ha='right', va='center',
                 bbox=dict(facecolor='black', alpha=0.5, pad=2))
 
-    # ---- Panel 4: Contiguous efficiency curve ----
+    # ---- Panel 4: Efficiency comparison ----
     ax = fig.add_subplot(gs[3, 0])
-    ax.plot(arc_areas, best_eff * 100, 'b-', lw=2, label='Angular arc')
-    for tgt, col in [(0.80, 'r'), (0.90, 'orange'), (0.95, 'green')]:
-        ax.axhline(y=tgt*100, color=col, ls='--', alpha=0.5, label=f'{tgt:.0%}')
+    ax.plot(arc_areas, best_eff * 100, 'b-', lw=2, label='Fixed angular arc')
+    ax.plot(adapt_area, adapt_eff * 100, 'r-', lw=2,
+            label='Adaptive 2D region')
+    for tgt, col in [(0.80, 'gray'), (0.90, 'gray'), (0.95, 'gray')]:
+        ax.axhline(y=tgt*100, color=col, ls='--', alpha=0.4)
+        # Annotate adaptive
+        if tgt in adapt_area_for_target:
+            a_ad = adapt_area_for_target[tgt]
+            cost_ad = a_ad / 500 * 7
+            ax.plot(a_ad, tgt*100, 'ro', ms=6, zorder=5)
+            ax.annotate(f'{a_ad:.0f} m²\n~${cost_ad:.1f}M',
+                        xy=(a_ad, tgt*100), fontsize=7, color='red',
+                        xytext=(a_ad - total_surface_area*0.15, tgt*100 + 3),
+                        arrowprops=dict(arrowstyle='->', color='red'),
+                        ha='center')
+        # Annotate fixed
         if tgt in area_for_target:
-            a_t = area_for_target[tgt]
-            cost = a_t / 500 * 7
-            ax.annotate(f'{a_t:.0f} m²\n~${cost:.1f}M',
-                        xy=(a_t, tgt*100), fontsize=8,
-                        xytext=(a_t + total_surface_area*0.08, tgt*100 - 4),
-                        arrowprops=dict(arrowstyle='->', color=col), color=col)
+            a_fix = area_for_target[tgt]
+            cost_fix = a_fix / 500 * 7
+            ax.plot(a_fix, tgt*100, 'bs', ms=5, zorder=5)
+            ax.annotate(f'{a_fix:.0f} m²',
+                        xy=(a_fix, tgt*100), fontsize=7, color='blue',
+                        xytext=(a_fix + total_surface_area*0.06, tgt*100 - 4),
+                        arrowprops=dict(arrowstyle='->', color='blue'),
+                        ha='center')
     ax.set_xlabel('Instrumented area (m²)')
     ax.set_ylabel('Signal efficiency (%)')
-    ax.set_title('Efficiency vs Contiguous Tracking Area')
-    ax.legend(fontsize=8)
+    ax.set_title('Efficiency: Fixed Arc vs Adaptive 2D')
+    ax.legend(fontsize=8, loc='lower right')
     ax.set_xlim(0, total_surface_area * 1.05)
     ax.set_ylim(0, 102)
     ax.grid(True, alpha=0.3)
@@ -615,22 +797,129 @@ def run_analysis(csv_file, lifetime_seconds=None, outdir="output"):
             ax.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.5,
                     f'{frac:.1f}%', ha='center', fontsize=9, fontweight='bold')
 
-    # ---- Panel 6: Cross-section scatter ----
+    # ---- Panel 6: Cross-section density profile ----
     ax = fig.add_subplot(gs[4, 0])
-    ax.scatter(exit_xl, exit_yl, c='red', s=2, alpha=0.3, label='Signal exit')
-    ax.scatter(entry_xl, entry_yl, c='blue', s=2, alpha=0.1, label='LLP entry')
-    prof = tunnel_profile_points(inset=0.0)
-    prof_c = np.vstack([prof, prof[0]])
-    ax.plot(prof_c[:, 0], prof_c[:, 1], 'k-', lw=2)
+
+    # Bin densities around the profile angle
+    n_band = 120
+    band_edges = np.linspace(0, 2*np.pi, n_band + 1)
+
+    exit_density, _ = np.histogram(exit_theta, bins=band_edges,
+                                    weights=weights_norm)
+    entry_density, _ = np.histogram(entry_theta, bins=band_edges,
+                                     weights=weights_norm)
+
+    # Use the SAME profile as the tunnel outline to guarantee shape match
+    prof_wall = tunnel_profile_points(inset=0.0)
+    n_pv = len(prof_wall)
+
+    # Compute outward normals per vertex from adjacent edges
+    normals = np.zeros((n_pv, 2))
+    for k in range(n_pv):
+        k_prev = (k - 1) % n_pv
+        k_next = (k + 1) % n_pv
+
+        e1 = prof_wall[k] - prof_wall[k_prev]
+        n1 = np.array([e1[1], -e1[0]])
+
+        e2 = prof_wall[k_next] - prof_wall[k]
+        n2 = np.array([e2[1], -e2[0]])
+
+        n_avg = n1 / (np.linalg.norm(n1) + 1e-12) + n2 / (np.linalg.norm(n2) + 1e-12)
+        n_avg /= (np.linalg.norm(n_avg) + 1e-12)
+
+        if np.dot(n_avg, prof_wall[k]) < 0:
+            n_avg = -n_avg
+        normals[k] = n_avg
+
+    # Resample the profile at uniform arc-length intervals
+    seg_lens_prof = np.array([np.linalg.norm(prof_wall[(k+1) % n_pv] - prof_wall[k])
+                         for k in range(n_pv)])
+    cum_arc = np.concatenate([[0], np.cumsum(seg_lens_prof)])
+    total_perim = cum_arc[-1]
+
+    n_dense = 200
+    sample_arcs = np.linspace(0, total_perim, n_dense, endpoint=False)
+
+    dense_pts = []
+    dense_normals = []
+    dense_angles = []
+    for s_arc in sample_arcs:
+        seg_idx = np.searchsorted(cum_arc[1:], s_arc, side='right')
+        seg_idx = min(seg_idx, n_pv - 1)
+        frac = ((s_arc - cum_arc[seg_idx]) /
+                (seg_lens_prof[seg_idx] + 1e-12))
+        frac = np.clip(frac, 0, 1)
+
+        k_next = (seg_idx + 1) % n_pv
+        pt = prof_wall[seg_idx] * (1 - frac) + prof_wall[k_next] * frac
+        nm = normals[seg_idx] * (1 - frac) + normals[k_next] * frac
+        nm /= (np.linalg.norm(nm) + 1e-12)
+        ang = np.arctan2(pt[1], pt[0])
+        if ang < 0:
+            ang += 2 * np.pi
+        dense_pts.append(pt)
+        dense_normals.append(nm)
+        dense_angles.append(ang)
+
+    dense_pts = np.array(dense_pts)
+    dense_normals = np.array(dense_normals)
+    dense_angles = np.array(dense_angles)
+
+    # Map each point to its angular density bin
+    bin_idx = np.clip(np.digitize(dense_angles, band_edges) - 1, 0, n_band - 1)
+    exit_vals = exit_density[bin_idx]
+    entry_vals = entry_density[bin_idx]
+
+    # Build offset paths
+    offset_out = 0.18
+    offset_in  = 0.14
+    ex_pts = dense_pts + offset_out * dense_normals
+    en_pts = dense_pts - offset_in * dense_normals
+
+    from matplotlib.collections import LineCollection
+    from matplotlib.colors import Normalize
+
+    lw = 5.5
+
+    # Exit density (outer, Reds)
+    segs_ex = [[(ex_pts[i, 0], ex_pts[i, 1]),
+                (ex_pts[(i+1) % n_dense, 0], ex_pts[(i+1) % n_dense, 1])]
+               for i in range(n_dense)]
+    norm_ex = Normalize(vmin=0, vmax=max(exit_density.max(), 1e-10))
+    lc_ex = LineCollection(segs_ex, cmap='Reds', norm=norm_ex,
+                           linewidths=lw, zorder=4)
+    lc_ex.set_array(exit_vals)
+    ax.add_collection(lc_ex)
+    plt.colorbar(lc_ex, ax=ax, label='Signal exit', shrink=0.7,
+                 pad=0.01, aspect=30)
+
+    # Entry density (inner, Blues)
+    segs_en = [[(en_pts[i, 0], en_pts[i, 1]),
+                (en_pts[(i+1) % n_dense, 0], en_pts[(i+1) % n_dense, 1])]
+               for i in range(n_dense)]
+    norm_en = Normalize(vmin=0, vmax=max(entry_density.max(), 1e-10))
+    lc_en = LineCollection(segs_en, cmap='Blues', norm=norm_en,
+                           linewidths=lw, zorder=3)
+    lc_en.set_array(entry_vals)
+    ax.add_collection(lc_en)
+    plt.colorbar(lc_en, ax=ax, label='LLP entry', shrink=0.7,
+                 pad=0.01, aspect=30)
+
+    # Tunnel outline
+    prof_closed = np.vstack([prof_wall, prof_wall[0]])
+    ax.plot(prof_closed[:, 0], prof_closed[:, 1], 'k-', lw=1.5, zorder=5)
     prof_in = tunnel_profile_points(inset=DETECTOR_THICKNESS)
     prof_in_c = np.vstack([prof_in, prof_in[0]])
-    ax.plot(prof_in_c[:, 0], prof_in_c[:, 1], 'k--', lw=1)
-    ax.set_xlabel('Local x (m) — right')
-    ax.set_ylabel('Local y (m) — up')
-    ax.set_title('Cross-section: Signal exit (red) & LLP entry (blue)')
+    ax.plot(prof_in_c[:, 0], prof_in_c[:, 1], 'k--', lw=0.8, alpha=0.5)
+
+    ax.set_xlabel('Local x (m)')
+    ax.set_ylabel('Local y (m)')
+    ax.set_title('Cross-section Density:\nSignal exit (outer/red) — LLP entry (inner/blue)')
     ax.set_aspect('equal')
-    ax.legend(fontsize=8)
-    ax.grid(True, alpha=0.3)
+    ax.set_xlim(-2.2, 2.2)
+    ax.set_ylim(-2.0, 2.2)
+    ax.grid(True, alpha=0.2)
 
     # ---- Panel 7: Angular distribution (1D) with surface boundaries ----
     ax = fig.add_subplot(gs[4, 1])
@@ -687,14 +976,19 @@ def run_analysis(csv_file, lifetime_seconds=None, outdir="output"):
 
     for tgt in [0.80, 0.90, 0.95]:
         if tgt in area_for_target:
-            a = area_for_target[tgt]
+            a_fix = area_for_target[tgt]
             w_deg = np.degrees(angle_for_target[tgt][1])
-            cost = a / 500 * 7
-            remaining = total_surface_area - a
-            print(f"\n{tgt:.0%} efficiency: {a:.0f} m² tracking "
-                  f"(contiguous {w_deg:.0f}° arc, "
-                  f"{a/total_surface_area:.0%} of total, ~${cost:.1f}M)")
-            print(f"  Remaining {remaining:.0f} m²: veto-only (~$0.5-1M)")
+            cost_fix = a_fix / 500 * 7
+            print(f"\n{tgt:.0%} efficiency:")
+            print(f"  Fixed arc:  {a_fix:.0f} m² ({w_deg:.0f}° arc, "
+                  f"{a_fix/total_surface_area:.0%} of total, ~${cost_fix:.1f}M)")
+            if tgt in adapt_area_for_target:
+                a_ad = adapt_area_for_target[tgt]
+                cost_ad = a_ad / 500 * 7
+                saving = (1 - a_ad / a_fix) * 100
+                print(f"  Adaptive:   {a_ad:.0f} m² ("
+                      f"{a_ad/total_surface_area:.0%} of total, "
+                      f"~${cost_ad:.1f}M, {saving:.0f}% less)")
 
     print("\nDone!")
 

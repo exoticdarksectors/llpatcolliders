@@ -7,9 +7,13 @@ This repository is currently centered on a Pythia generation + signal acceptance
 See `howto.md` for the full command sequence.
 
 Pipeline stages:
-1. **Production** — `pythiaStuff/parallel_produce.sh` runs `main144` in parallel batches until a target number of LLP rows is reached. Both cmnd files use BR=1.0 (efficiency maps); rescale by true BR in analysis via `--xsec`. Output goes to `output/`.
+1. **Production** — `pythiaStuff/parallel_produce.sh` runs `main144` in parallel batches until a target number of LLP rows is reached. Both cmnd files use BR=1.0 (efficiency maps); rescale by true BR in analysis and always pass explicit `--xsec` (do not use the script default). Output goes to `output/`.
 2. **Signal acceptance** — `decayProbPerEvent_2body.py` ray-casts, computes decay probabilities, produces exclusion plots.
 3. **Surface hit-map** — `signal_surface_hitmap_v2.py` maps accepted decays to tunnel surface coordinates.
+
+HL-LHC normalization notes (`sqrt(s)=14 TeV`, `L=3000 fb^-1`):
+- Heavy (`h -> aa`): use benchmark `sigma(pp->h)` (e.g. ~60 pb) and interpret limits via your `BR(h->aa)`/visible-decay assumptions.
+- Light (`B -> K(*)a`): use benchmark-specific effective `xsec = sigma(pp->bb, cuts) * P(B->K(*)a)`; do not use a fixed generic value for physics conclusions.
 
 ## Main scripts
 
@@ -28,8 +32,10 @@ Pipeline stages:
 
 ### `signal_surface_hitmap_v2.py`
 - Maps accepted decays to tunnel surface coordinates (arc-length s, profile angle θ).
-- Computes contiguous-arc efficiency vs. instrumented area for detector optimization.
-- Produces surface coverage and efficiency/cost plots.
+- Computes contiguous-arc efficiency **and** adaptive 2D region-growing efficiency
+  vs. instrumented area for detector optimization.
+- Produces surface coverage, efficiency comparison (fixed arc vs adaptive 2D), and
+  density cross-section plots.
 
 ### `backgroundFullGeo.py` (optional)
 - Full-geometry muon-trident background Monte Carlo.

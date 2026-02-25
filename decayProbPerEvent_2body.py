@@ -161,10 +161,13 @@ def unweighted_decay_prob(entry_d, exit_d, decay_length):
 
 
 
-def process_with_acceptance(csv_file, lifetime_seconds, geo_cache,
+def process_with_acceptance(csv_file_or_df, lifetime_seconds, geo_cache,
                              p_cut=P_CUT, sep_min=SEP_MIN, sep_max=SEP_MAX):
-    df = pd.read_csv(csv_file)
-    n = len(df)
+    if isinstance(csv_file_or_df, pd.DataFrame):
+        df = csv_file_or_df.copy()
+    else:
+        df = pd.read_csv(csv_file_or_df)
+        df.columns = df.columns.str.strip()
     hits = geo_cache['hits']
     
     df['hits_tube'] = hits
@@ -219,8 +222,9 @@ def analyze_decay_vs_lifetime(csv_file, geo_cache, lifetime_range,
                                p_cut=P_CUT, sep_min=SEP_MIN, sep_max=SEP_MAX,
                                xsec_fb=52E3, lumi_fb=3000):
     df_base = pd.read_csv(csv_file)
+    df_base.columns = df_base.columns.str.strip()
     n_events = df_base['event'].nunique()
-    
+
     results = {
         'lifetimes': lifetime_range,
         'mean_single_particle_decay_prob': [],
@@ -233,10 +237,10 @@ def analyze_decay_vs_lifetime(csv_file, geo_cache, lifetime_range,
         'mean_acceptance': [],
         'total_events': n_events
     }
-    
+
     for lifetime in tqdm(lifetime_range, desc="Scanning lifetimes"):
         df, event_df = process_with_acceptance(
-            csv_file, lifetime, geo_cache, p_cut, sep_min, sep_max)
+            df_base, lifetime, geo_cache, p_cut, sep_min, sep_max)
         
         hits = df[df['hits_tube']]
         mean_single = hits['decay_probability'].mean() if len(hits) > 0 else 0
@@ -252,8 +256,10 @@ def analyze_decay_vs_lifetime(csv_file, geo_cache, lifetime_range,
         results['mean_at_least_one_decay_prob'].append(mean_p1)
         results['mean_at_least_one_no_cuts'].append(mean_p1_nc)
         results['mean_both_decay_prob'].append(mean_both)
-        results['exclusion'].append(3 / (mean_p1 * lumi_fb * xsec_fb))
-        results['exclusion_no_cuts'].append(3 / (mean_p1_nc * lumi_fb * xsec_fb))
+        denom = mean_p1 * lumi_fb * xsec_fb
+        denom_nc = mean_p1_nc * lumi_fb * xsec_fb
+        results['exclusion'].append(3 / denom if denom > 0 else np.inf)
+        results['exclusion_no_cuts'].append(3 / denom_nc if denom_nc > 0 else np.inf)
         results['mean_acceptance'].append(mean_acc)
     
     return results
@@ -351,6 +357,7 @@ def sample_separations(geo_cache, lifetime_seconds, n_samples_per_particle=100,
 if __name__ == "__main__":
     import argparse
     import os
+    import sys
     parser = argparse.ArgumentParser()
     parser.add_argument("csv_file", nargs="?", default="LLP.csv")
     parser.add_argument("--xsec", type=float, default=52E3,
@@ -360,6 +367,13 @@ if __name__ == "__main__":
     parser.add_argument("--outdir", default="output",
                         help="output directory for plots and CSVs (default: output)")
     args = parser.parse_args()
+    xsec_arg_given = any(
+        tok == "--xsec" or tok.startswith("--xsec=")
+        for tok in sys.argv[1:]
+    )
+    if not xsec_arg_given:
+        print("WARNING: --xsec not provided; using default 52e3 fb.")
+        print("         For HL-LHC studies, pass benchmark-specific --xsec explicitly.")
     os.makedirs(args.outdir, exist_ok=True)
     sample_csv = args.csv_file
     output_tag = os.path.basename(sample_csv).replace('.csv', '')
@@ -549,23 +563,20 @@ if __name__ == "__main__":
     ax4.set_ylabel('BR')
     ax4.grid(True, which="both", ls="-", alpha=0.2)
     
-    ext = {}
-    ext["MATHUSLA"] = np.loadtxt("external/MATHUSLA.csv", delimiter=",")
-    ext["CODEX"] = np.loadtxt("external/CODEX.csv", delimiter=",")
-    ext["ANUBIS"] = np.loadtxt("external/ANUBIS.csv", delimiter=",")
-    ext["ANUBISOpt"] = np.loadtxt("external/ANUBISOpt.csv", delimiter=",")
-    ext["ANUBISCons"] = np.loadtxt("external/ANUBISUpdateCons.csv", delimiter=",")
-    
-    ax4.loglog(ext["MATHUSLA"][:, 0], ext["MATHUSLA"][:, 1],
-               color="green", linewidth=2, label="MATHUSLA")
-    ax4.loglog(ext["CODEX"][:, 0], ext["CODEX"][:, 1],
-               color="cyan", linewidth=2, label="CODEX-b")
-    ax4.loglog(ext["ANUBIS"][:, 0], ext["ANUBIS"][:, 1],
-               color="purple", linewidth=2, label="ANUBIS")
-    ax4.loglog(ext["ANUBISOpt"][:, 0], ext["ANUBISOpt"][:, 1],
-               color="purple", linewidth=2, linestyle="--", label="ANUBIS Opt")
-    ax4.loglog(ext["ANUBISCons"][:, 0], ext["ANUBISCons"][:, 1],
-               color="magenta", linewidth=2, linestyle="--", label="ANUBIS Cons")
+    ext_curves = [
+        ("MATHUSLA", "external/MATHUSLA.csv", "green", "-"),
+        ("CODEX-b", "external/CODEX.csv", "cyan", "-"),
+        ("ANUBIS", "external/ANUBIS.csv", "purple", "-"),
+        ("ANUBIS Opt", "external/ANUBISOpt.csv", "purple", "--"),
+        ("ANUBIS Cons", "external/ANUBISUpdateCons.csv", "magenta", "--"),
+    ]
+    for label, path, color, ls in ext_curves:
+        try:
+            data = np.loadtxt(path, delimiter=",")
+            ax4.loglog(data[:, 0], data[:, 1],
+                       color=color, linewidth=2, linestyle=ls, label=label)
+        except (FileNotFoundError, OSError):
+            print(f"  Note: external curve '{path}' not found, skipping.")
     ax4.legend(fontsize=8, loc='upper right')
     
     plt.tight_layout()

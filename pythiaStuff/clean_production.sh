@@ -24,6 +24,7 @@ Removes files produced by parallel_produce.sh:
   - output/<output_name>.csv
   - output/.<output_name>_part_*.csv
   - output/.<output_name>_part_*.log
+  - output/.<output_name>_part_*.root
 
 With --all, removes all matching production outputs in output/.
 EOF
@@ -59,6 +60,7 @@ if [[ "$target" == "--all" ]]; then
     "$OUTDIR"/*.csv
     "$OUTDIR"/.*_part_*.csv
     "$OUTDIR"/.*_part_*.log
+    "$OUTDIR"/.*_part_*.root
   )
   shopt -u nullglob
 
@@ -82,6 +84,7 @@ shopt -s nullglob
 files+=(
   "$OUTDIR/.${name}_part_"*.csv
   "$OUTDIR/.${name}_part_"*.log
+  "$OUTDIR/.${name}_part_"*.root
 )
 shopt -u nullglob
 

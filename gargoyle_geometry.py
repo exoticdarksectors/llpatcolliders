@@ -195,6 +195,7 @@ def cache_geometry(csv_file, mesh, origin):
     a dict of cached entry/exit distances and kinematic quantities.
     """
     df = pd.read_csv(csv_file)
+    df.columns = df.columns.str.strip()
     n = len(df)
     origin = np.array(origin)
 

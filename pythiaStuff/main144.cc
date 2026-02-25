@@ -291,7 +291,7 @@ int main(int argc, char* argv[]) {
   int llpId = pythia.mode("LLP:pdgId");
   ofstream myfile;
   myfile.open (out + ".csv");
-  myfile << "event,\tid,\tpt,\teta,\tphi,\tmomentum,\tmass\n";
+  myfile << "event,id,pt,eta,phi,momentum,mass\n";
   for ( int iEvent = 0; iEvent < nEvent; ++iEvent ) {
     auto startThisEvent = std::chrono::high_resolution_clock::now();
 
@@ -326,9 +326,9 @@ int main(int argc, char* argv[]) {
     for (int iPrt = 0; iPrt < pythia.event.size(); ++iPrt) {
       Particle& prt = pythia.event[iPrt];
       if (abs(prt.id()) != llpId) continue;
-      myfile << iEvent << ",\t" << prt.id() << ",\t" << prt.pT() << ",\t"
-             << prt.eta() << ",\t" << prt.phi() << ",\t" << prt.pAbs()
-             << ",\t" << prt.m() << "\n";
+      myfile << iEvent << "," << prt.id() << "," << prt.pT() << ","
+             << prt.eta() << "," << prt.phi() << "," << prt.pAbs()
+             << "," << prt.m() << "\n";
     }
 
     // Write to ROOT TTree (optional, requires -DPY8ROOT at compile time).
@@ -352,7 +352,9 @@ int main(int argc, char* argv[]) {
   if (writeRoot) {
     tree->Print();
     tree->Write();
-    delete file, tree, evt;
+    delete evt;
+    delete tree;
+    delete file;
   }
 #endif
 
