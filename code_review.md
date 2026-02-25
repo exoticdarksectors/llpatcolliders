@@ -8,7 +8,7 @@
 
 ### 1.1 Physics
 
-- **P4** (`pythiaStuff/alp_meson.cmnd:27`) — `PhaseSpace:pTHatMin = 20` introduces a kinematic bias without analysis-side event reweighting. *Note: biases toward high-pT B mesons. Acceptable if detector acceptance is dominated by high-pT ALPs, but worth being aware of.*
+- **P4** (`pythiaStuff/alp_meson.cmnd:27`) — `PhaseSpace:pTHatMin = 20` removes ~95-98% of the bb cross section. 86% of tunnel-hitting ALPs have pT < 20 GeV; these currently come from the tail of pTHat > 20 events after fragmentation, but an unknown additional contribution from the missing pTHat < 20 population is unaccounted for. No published far-detector LLP analysis (MATHUSLA, CODEX-b, ANUBIS, DDC) uses a pTHatMin cut for B-meson production — the standard is full-pT FONLL or Pythia with pTHatMin = 0. **Action: remove pTHatMin for the final paper result, or regenerate with FONLL-based B spectra. Until then, flag as a known limitation.**
 
 ### 1.2 Portability
 
