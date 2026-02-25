@@ -26,7 +26,6 @@ Compatible with: decayProbPerEvent_2body.py
 """
 
 import numpy as np
-import trimesh
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
@@ -35,11 +34,14 @@ from scipy.integrate import quad
 from scipy.interpolate import interp1d
 from tqdm import tqdm
 from dataclasses import dataclass
+from gargoyle_geometry import (
+    TUNNEL_GAMMA, DETECTOR_THICKNESS,
+    mesh_fiducial, path_3d_fiducial,
+)
 
 # =============================================================================
-# Constants (same as signal code + background code)
+# Constants
 # =============================================================================
-SPEED_OF_LIGHT = 299792458.0
 ALPHA_EM       = 1.0 / 137.036
 R_E            = 2.8179e-15    # m
 M_ELECTRON     = 0.000511      # GeV
@@ -55,14 +57,6 @@ E_THRESHOLD = 15.0                # GeV production threshold
 E_CUT   = 0.600   # GeV
 SEP_MIN = 0.001   # m (1 cm)
 
-# Tunnel geometry constants (from signal code)
-TUNNEL_ALPHA = 2.90
-TUNNEL_BETA  = 3.15
-TUNNEL_GAMMA = 2.90
-TUNNEL_DELTA = 1.90
-TUNNEL_WALL_HEIGHT = TUNNEL_BETA - TUNNEL_DELTA
-DETECTOR_THICKNESS = 0.24
-
 FIDUCIAL_WIDTH = TUNNEL_GAMMA - 2 * DETECTOR_THICKNESS
 SEP_MAX = FIDUCIAL_WIDTH  # ~2.42 m
 
@@ -73,158 +67,6 @@ AIR_RHO = 1.205e-3  # g/cm^3
 AIR_N   = N_A * AIR_RHO / AIR_A  # atoms/cm^3
 
 
-# =============================================================================
-# Tunnel geometry (copied from signal code)
-# =============================================================================
-
-def tunnel_profile_points(n_arch=32, n_wall=4, inset=0.0, inset_floor=False):
-    half_w = TUNNEL_GAMMA / 2 - inset
-    half_floor = TUNNEL_ALPHA / 2 - inset
-    wall_h = TUNNEL_WALL_HEIGHT
-    a = TUNNEL_GAMMA / 2 - inset
-    b = TUNNEL_DELTA - inset
-    floor_y = inset if inset_floor else 0.0
-    points = []
-    points.append([-half_floor, floor_y])
-    points.append([half_floor, floor_y])
-    for i in range(1, n_wall + 1):
-        frac = i / n_wall
-        y = floor_y + (wall_h - floor_y) * frac if inset_floor else frac * wall_h
-        x = half_floor + (half_w - half_floor) * frac
-        points.append([x, y])
-    for i in range(1, n_arch):
-        angle = np.pi * i / n_arch
-        x = a * np.cos(angle)
-        y = wall_h + b * np.sin(angle)
-        points.append([x, y])
-    for i in range(n_wall, 0, -1):
-        frac = i / n_wall
-        y = floor_y + (wall_h - floor_y) * frac if inset_floor else frac * wall_h
-        x = half_floor + (half_w - half_floor) * frac
-        points.append([-x, y])
-    points = np.array(points)
-    rect_area = TUNNEL_ALPHA * TUNNEL_WALL_HEIGHT
-    rect_cy = TUNNEL_WALL_HEIGHT / 2
-    a0 = TUNNEL_GAMMA / 2
-    b0 = TUNNEL_DELTA
-    ellipse_area = np.pi * a0 * b0 / 2
-    ellipse_cy = TUNNEL_WALL_HEIGHT + 4 * b0 / (3 * np.pi)
-    total_area = rect_area + ellipse_area
-    centroid_y = (rect_area * rect_cy + ellipse_area * ellipse_cy) / total_area
-    points[:, 1] -= centroid_y
-    return points
-
-
-def create_profile_mesh(path_points, profile_2d):
-    n_profile = len(profile_2d)
-    vertices = []
-    faces = []
-    for i in range(len(path_points)):
-        if i == 0:
-            tangent = path_points[1] - path_points[0]
-        elif i == len(path_points) - 1:
-            tangent = path_points[i] - path_points[i - 1]
-        else:
-            tangent = path_points[i + 1] - path_points[i - 1]
-        tangent = tangent / np.linalg.norm(tangent)
-        if abs(tangent[2]) < 0.9:
-            world_up = np.array([0, 0, 1])
-        else:
-            world_up = np.array([1, 0, 0])
-        right = np.cross(tangent, world_up)
-        right = right / np.linalg.norm(right)
-        up = np.cross(right, tangent)
-        up = up / np.linalg.norm(up)
-        for j in range(n_profile):
-            offset = profile_2d[j, 0] * right + profile_2d[j, 1] * up
-            vertices.append(path_points[i] + offset)
-        if i > 0:
-            for j in range(n_profile):
-                v1 = (i - 1) * n_profile + j
-                v2 = (i - 1) * n_profile + (j + 1) % n_profile
-                v3 = i * n_profile + (j + 1) % n_profile
-                v4 = i * n_profile + j
-                faces.append([v1, v4, v3])
-                faces.append([v1, v3, v2])
-    center_start = len(vertices)
-    vertices.append(path_points[0].copy())
-    for j in range(n_profile):
-        faces.append([center_start, (j + 1) % n_profile, j])
-    center_end = len(vertices)
-    vertices.append(path_points[-1].copy())
-    last = (len(path_points) - 1) * n_profile
-    for j in range(n_profile):
-        faces.append([center_end, last + j, last + (j + 1) % n_profile])
-    return np.array(vertices), np.array(faces)
-
-
-def build_tunnel_mesh():
-    """Build the fiducial volume mesh (identical to signal code)."""
-    correctedVert = [
-        (-86.57954338701529, 0.1882163986665546),
-        (-1731.590867740335, 3.764327973349282),
-        (-3549.761278867689, 7.716872345365118),
-        (-5887.408950317142, 12.798715109387558),
-        (-8053.403266181902, -504.23173203003535),
-        (-10046.991360867298, -1282.5065405198511),
-        (-11783.350377373874, -2930.9057600491833),
-        (-12913.652590171332, -4580.622494369192),
-        (-13095.344153684957, -7536.749251839814),
-        (-13099.610392054752, -9015.000846973791),
-        (-13278.792403586143, -11101.567842600896),
-        (-13372.39869252341, -13536.146959364076),
-        (-13292.093029091975, -15710.234580371536),
-        (-12779.140603923677, -17972.21925955668),
-        (-11659.12755425337, -19887.69754879509),
-        (-10105.714877251532, -21630.204967658145),
-        (-7512.845769209047, -23201.0590309365),
-        (-5262.530506741277, -23466.820585854904),
-        (-2751.72374851779, -23472.278861416264),
-        (-241.41890069074725, -23651.64908934632),
-        (1749.6596420124115, -23742.93404270002),
-        (3827.568683300815, -23747.45123626804),
-        (6078.6368113632525, -23752.344862633392),
-        (8502.613071001502, -23844.570897980426),
-        (11446.568501358292, -23764.01427935077),
-        (13438.399909656131, -23594.431304151418),
-        (15777.051401898476, -23251.689242178036),
-        (18289.614846509525, -22648.455684448927),
-        (20889.761655300477, -21697.58643838109),
-        (23143.841245741598, -20659.00835053422),
-        (25486.006110759066, -19098.88262197991),
-        (27742.09334278597, -17364.656724658227),
-        (28871.391734790544, -16062.763895075637),
-        (30781.662703665817, -14153.873179790575),
-        (32518.021720172394, -12505.473960261239),
-        (34513.49197884447, -11075.029330388788),
-        (36636.57295581305, -10427.47081077351),
-        (38759.40297758341, -9866.868267342572),
-        (41357.416667189485, -9655.12481884172),
-        (43694.93886103982, -9703.684649697909),
-        (46379.03018363646, -9666.041369964427),
-        (49409.43967978114, -9629.150955825604),
-        (51660.88424064092, -9503.610617914434),
-        (54258.0195870532, -9596.213086058811),
-        (57028.564975437745, -9602.236010816167),
-        (59539.87364405768, -9433.782334008818),
-        (62050.42944708294, -9526.196585754526),
-    ]
-
-    correctedVertWithShift = []
-    for x, y in correctedVert:
-        correctedVertWithShift.append(
-            ((x - 11908.8279764855) / 1000, (y + 13591.106147774964) / 1000))
-
-    Z_POSITION = 22
-    path_3d = np.array([[x, y, Z_POSITION] for x, y in correctedVertWithShift])
-
-    profile_fiducial = tunnel_profile_points(inset=DETECTOR_THICKNESS, inset_floor=False)
-    verts, faces = create_profile_mesh(path_3d, profile_fiducial)
-    mesh = trimesh.Trimesh(vertices=verts, faces=faces)
-    if mesh.volume < 0:
-        mesh.invert()
-
-    return mesh, path_3d
 
 
 # =============================================================================
@@ -755,9 +597,8 @@ def plot_results(results, save_path=None):
 
 if __name__ == "__main__":
     
-    print("Building tunnel fiducial mesh...")
-    mesh, path_3d = build_tunnel_mesh()
-    print(f"  Fiducial volume: {mesh.volume:.1f} m^3")
+    mesh = mesh_fiducial
+    path_3d = path_3d_fiducial
     
     origin = np.array([0, 0, 0])
     

@@ -195,7 +195,7 @@ int main(int argc, char* argv[]) {
 
   // Read the extra parameters.
   if (nev > -1) pythia.settings.mode("Main:numberOfEvents", nev);
-  int nEvent                   = pythia.mode("Main:numberOfEvents");;
+  int nEvent                   = pythia.mode("Main:numberOfEvents");
   int nError                   = pythia.mode("Main:timesAllowErrors");
   bool writeLog                = pythia.flag("Main:writeLog");
   bool writeHepmc              = pythia.flag("Main:writeHepMC");
@@ -248,7 +248,6 @@ int main(int argc, char* argv[]) {
   // ROOT initialization.
 #ifdef PY8ROOT
   // Create the ROOT TFile and TTree.
-  std::cout << "here" << std::endl;
   TFile *file;
   TTree *tree;
   RootEvent *evt;
@@ -288,12 +287,11 @@ int main(int argc, char* argv[]) {
 #endif
 
   // Loop over events.
-  std::cout << "here" << std::endl;
   auto startAllEvents = std::chrono::high_resolution_clock::now();
   int llpId = pythia.mode("LLP:pdgId");
   ofstream myfile;
   myfile.open (out + ".csv");
-  myfile << "event,id,pt,eta,phi,momentum,mass\n";
+  myfile << "event,\tid,\tpt,\teta,\tphi,\tmomentum,\tmass\n";
   for ( int iEvent = 0; iEvent < nEvent; ++iEvent ) {
     auto startThisEvent = std::chrono::high_resolution_clock::now();
 

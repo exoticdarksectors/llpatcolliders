@@ -83,5 +83,5 @@ Next:numberShowEvent   = 1
 Stat:showPartonLevel = on
 
 ! ---- 7) Output ---------------------------------------------------------
-Main:numberOfEvents = 100000       ! more events needed: ALP yield per B is ~1e-5
+Main:numberOfEvents = 100000       ! overridden by parallel_produce.sh batch size
 Main:writeLog = on

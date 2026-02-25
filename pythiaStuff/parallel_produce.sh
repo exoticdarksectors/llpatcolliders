@@ -8,7 +8,7 @@ set -euo pipefail
 #
 # Examples:
 #   bash parallel_produce.sh higgsLL.cmnd  10000 alp_heavy_m15
-#   bash parallel_produce.sh alp_meson.cmnd 10000 alp_light_m1 8 50000
+#   bash parallel_produce.sh alp_meson.cmnd 10000 alp_light_m1
 
 CMND="${1:?Usage: $0 <cmnd_file> <target_llps> <output_name> [n_jobs] [batch_size]}"
 TARGET="${2:?}"
@@ -22,7 +22,7 @@ CSV="${OUTDIR}/${NAME}.csv"
 TMP="${OUTDIR}/.${NAME}_part"
 
 # Initialize output CSV with header
-echo "event,id,pt,eta,phi,momentum,mass" > "$CSV"
+printf 'event,\tid,\tpt,\teta,\tphi,\tmomentum,\tmass\n' > "$CSV"
 
 count=0
 round=0

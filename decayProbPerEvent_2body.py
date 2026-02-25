@@ -1,31 +1,22 @@
 import numpy as np
 import pandas as pd
-import trimesh
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 from scipy.integrate import quad
+from gargoyle_geometry import (
+    SPEED_OF_LIGHT,
+    calculate_decay_length, cache_geometry,
+    mesh_fiducial,
+)
 
-# Speed of light in m/s
-SPEED_OF_LIGHT = 299792458.0  # m/s
 M_DAUGHTER = 0.10566  # GeV/c² (muon mass, matching generator decay a → μ⁺μ⁻)
 
-# ============================================================
-# Tunnel cross-section definition (Position C measurements)
-# ============================================================
-TUNNEL_ALPHA = 2.90  # floor width (m)
-TUNNEL_BETA  = 3.15  # total height (m)
-TUNNEL_GAMMA = 2.90  # arch width at springline (m)
-TUNNEL_DELTA = 1.90  # arch height (m)
-TUNNEL_WALL_HEIGHT = TUNNEL_BETA - TUNNEL_DELTA  # 1.25m
-
-DETECTOR_THICKNESS = 0.24  # 24 cm
-
 # Analysis cuts
-P_CUT   = 0.600    # GeV/c — minimum electron momentum
+P_CUT   = 0.600    # GeV/c — minimum daughter momentum
 SEP_MIN = 0.001    # m — minimum separation at detector (1 mm)
-SEP_MAX = 1.0     # m — maximum separation at detector (10 cm)
+SEP_MAX = 1.0     # m — maximum separation at detector
 
 # ============================================================
 # Two-body decay acceptance (analytical)
@@ -168,143 +159,6 @@ def unweighted_decay_prob(entry_d, exit_d, decay_length):
     return np.exp(-entry_d / decay_length) * (1.0 - np.exp(-path_length / decay_length))
 
 
-# ============================================================
-# Geometry functions
-# ============================================================
-
-def tunnel_profile_points(n_arch=32, n_wall=4, inset=0.0, inset_floor=False):
-    half_w = TUNNEL_GAMMA / 2 - inset
-    half_floor = TUNNEL_ALPHA / 2 - inset
-    wall_h = TUNNEL_WALL_HEIGHT
-    a = TUNNEL_GAMMA / 2 - inset
-    b = TUNNEL_DELTA - inset
-    floor_y = inset if inset_floor else 0.0
-    points = []
-    points.append([-half_floor, floor_y])
-    points.append([half_floor, floor_y])
-    for i in range(1, n_wall + 1):
-        frac = i / n_wall
-        y = floor_y + (wall_h - floor_y) * frac if inset_floor else frac * wall_h
-        x = half_floor + (half_w - half_floor) * frac
-        points.append([x, y])
-    for i in range(1, n_arch):
-        angle = np.pi * i / n_arch
-        x = a * np.cos(angle)
-        y = wall_h + b * np.sin(angle)
-        points.append([x, y])
-    for i in range(n_wall, 0, -1):
-        frac = i / n_wall
-        y = floor_y + (wall_h - floor_y) * frac if inset_floor else frac * wall_h
-        x = half_floor + (half_w - half_floor) * frac
-        points.append([-x, y])
-    points = np.array(points)
-    rect_area = TUNNEL_ALPHA * TUNNEL_WALL_HEIGHT
-    rect_cy = TUNNEL_WALL_HEIGHT / 2
-    a0 = TUNNEL_GAMMA / 2
-    b0 = TUNNEL_DELTA
-    ellipse_area = np.pi * a0 * b0 / 2
-    ellipse_cy = TUNNEL_WALL_HEIGHT + 4 * b0 / (3 * np.pi)
-    total_area = rect_area + ellipse_area
-    centroid_y = (rect_area * rect_cy + ellipse_area * ellipse_cy) / total_area
-    points[:, 1] -= centroid_y
-    return points
-
-
-def create_profile_mesh(path_points, profile_2d):
-    n_profile = len(profile_2d)
-    vertices = []
-    faces = []
-    for i in range(len(path_points)):
-        if i == 0:
-            tangent = path_points[1] - path_points[0]
-        elif i == len(path_points) - 1:
-            tangent = path_points[i] - path_points[i-1]
-        else:
-            tangent = path_points[i+1] - path_points[i-1]
-        tangent = tangent / np.linalg.norm(tangent)
-        if abs(tangent[2]) < 0.9:
-            world_up = np.array([0, 0, 1])
-        else:
-            world_up = np.array([1, 0, 0])
-        right = np.cross(tangent, world_up)
-        right = right / np.linalg.norm(right)
-        up = np.cross(right, tangent)
-        up = up / np.linalg.norm(up)
-        for j in range(n_profile):
-            offset = profile_2d[j, 0] * right + profile_2d[j, 1] * up
-            vertices.append(path_points[i] + offset)
-        if i > 0:
-            for j in range(n_profile):
-                v1 = (i-1) * n_profile + j
-                v2 = (i-1) * n_profile + (j + 1) % n_profile
-                v3 = i * n_profile + (j + 1) % n_profile
-                v4 = i * n_profile + j
-                faces.append([v1, v4, v3])
-                faces.append([v1, v3, v2])
-    center_start = len(vertices)
-    vertices.append(path_points[0].copy())
-    for j in range(n_profile):
-        faces.append([center_start, (j + 1) % n_profile, j])
-    center_end = len(vertices)
-    vertices.append(path_points[-1].copy())
-    last = (len(path_points) - 1) * n_profile
-    for j in range(n_profile):
-        faces.append([center_end, last + j, last + (j + 1) % n_profile])
-    return np.array(vertices), np.array(faces)
-
-
-def eta_phi_to_direction(eta, phi):
-    theta = 2 * np.arctan(np.exp(-eta))
-    dx = np.sin(theta) * np.cos(phi)
-    dy = np.sin(theta) * np.sin(phi)
-    dz = np.cos(theta)
-    return np.array([dx, dy, dz])
-
-
-def calculate_decay_length(momentum, mass, lifetime):
-    energy = np.sqrt(momentum**2 + mass**2)
-    beta = momentum / energy
-    gamma = energy / mass
-    return gamma * beta * SPEED_OF_LIGHT * lifetime
-
-
-# ============================================================
-# Geometry caching and processing
-# ============================================================
-
-def cache_geometry(csv_file, mesh, origin):
-    df = pd.read_csv(csv_file)
-    n = len(df)
-    origin = np.array(origin)
-    hits = np.zeros(n, dtype=bool)
-    entry_d = np.full(n, np.nan)
-    exit_d = np.full(n, np.nan)
-    momentum = df['momentum'].values
-    mass = df['mass'].values
-    energy = np.sqrt(momentum**2 + mass**2)
-    gamma = energy / mass
-    beta = momentum / energy
-    
-    print(f"Caching fiducial volume geometry for {n} particles...")
-    for idx, row in tqdm(df.iterrows(), total=n, desc="Ray-casting"):
-        direction = eta_phi_to_direction(row['eta'], row['phi'])
-        locations, _, _ = mesh.ray.intersects_location(
-            ray_origins=[origin], ray_directions=[direction])
-        if len(locations) >= 2:
-            hits[idx] = True
-            distances = sorted([np.linalg.norm(loc - origin) for loc in locations])
-            entry_d[idx] = distances[0]
-            exit_d[idx] = distances[1]
-    
-    n_hits = hits.sum()
-    print(f"  {n_hits} / {n} particles hit fiducial volume ({n_hits/n*100:.1f}%)")
-    if n_hits > 0:
-        print(f"  Mean path length: {(exit_d[hits] - entry_d[hits]).mean():.2f} m")
-    
-    return {
-        'hits': hits, 'entry_d': entry_d, 'exit_d': exit_d,
-        'gamma': gamma, 'beta': beta, 'momentum': momentum, 'mass': mass
-    }
 
 
 def process_with_acceptance(csv_file, lifetime_seconds, geo_cache,
@@ -414,7 +268,7 @@ def sample_separations(geo_cache, lifetime_seconds, n_samples_per_particle=100,
     For each particle that hits the fiducial volume:
       1. Sample decay position d from (1/λ) exp(-d/λ) within [entry, exit]
          using inverse CDF sampling
-      2. Sample |cosθ*| uniformly in [0, β] (forward requirement)
+      2. Sample |cosθ*| uniformly in [0, 1] (isotropic decay)
       3. Compute opening angle θ_12 from cos(θ_12) = 1 - 2/(γ²(1-β²cos²θ*))
       4. Compute separation = θ_12 × d_remaining
     
@@ -489,79 +343,6 @@ def sample_separations(geo_cache, lifetime_seconds, n_samples_per_particle=100,
             np.concatenate(all_momenta))
 
 
-# ============================================================
-# Tunnel centerline
-# ============================================================
-
-correctedVert = [
-(-86.57954338701529, 0.1882163986665546  ),
-(-1731.590867740335, 3.764327973349282   ),
-(-3549.761278867689, 7.716872345365118   ),
-(-5887.408950317142, 12.798715109387558  ),
-(-8053.403266181902, -504.23173203003535 ),
-(-10046.991360867298, -1282.5065405198511),
-(-11783.350377373874, -2930.9057600491833),
-(-12913.652590171332, -4580.622494369192 ),
-(-13095.344153684957, -7536.749251839814 ),
-(-13099.610392054752, -9015.000846973791 ),
-(-13278.792403586143, -11101.567842600896),
-(-13372.39869252341, -13536.146959364076 ),
-(-13292.093029091975, -15710.234580371536),
-(-12779.140603923677, -17972.21925955668   ), 
-(-11659.12755425337, -19887.69754879509    ),
-(-10105.714877251532, -21630.204967658145  ),
-(-7512.845769209047, -23201.0590309365     ),
-(-5262.530506741277, -23466.820585854904   ),
-(-2751.72374851779, -23472.278861416264    ),
-(-241.41890069074725, -23651.64908934632   ),
-(1749.6596420124115, -23742.93404270002    ),
-(3827.568683300815, -23747.45123626804     ),
-(6078.6368113632525, -23752.344862633392   ),
-(8502.613071001502, -23844.570897980426    ),
-(11446.568501358292, -23764.01427935077    ),
-(13438.399909656131, -23594.431304151418   ),
-(15777.051401898476, -23251.689242178036   ),
-(18289.614846509525, -22648.455684448927   ),
-(20889.761655300477, -21697.58643838109    ),
-(23143.841245741598, -20659.00835053422    ),
-(25486.006110759066, -19098.88262197991    ),
-(27742.09334278597, -17364.656724658227    ),
-(28871.391734790544, -16062.763895075637   ),
-(30781.662703665817, -14153.873179790575   ),
-(32518.021720172394, -12505.473960261239   ),
-(34513.49197884447, -11075.029330388788    ),
-(36636.57295581305, -10427.47081077351     ),
-(38759.40297758341, -9866.868267342572     ),
-(41357.416667189485, -9655.12481884172     ),
-(43694.93886103982, -9703.684649697909     ),
-(46379.03018363646, -9666.041369964427     ),
-(49409.43967978114, -9629.150955825604     ),
-(51660.88424064092, -9503.610617914434     ),
-(54258.0195870532, -9596.213086058811      ),
-(57028.564975437745, -9602.236010816167    ),
-(59539.87364405768, -9433.782334008818     ),
-(62050.42944708294, -9526.196585754526     )]
-
-correctedVertWithShift = []
-for x, y in correctedVert:
-    correctedVertWithShift.append(
-        ((x - 11908.8279764855) / 1000, (y + 13591.106147774964) / 1000))
-
-Z_POSITION = 22
-path_3d = np.array([[x, Z_POSITION,y] for x, y in correctedVertWithShift])
-
-# Build fiducial volume mesh
-print("Building fiducial volume mesh...")
-profile_fiducial = tunnel_profile_points(inset=DETECTOR_THICKNESS, inset_floor=False)
-verts, faces = create_profile_mesh(path_3d, profile_fiducial)
-mesh_fiducial = trimesh.Trimesh(vertices=verts, faces=faces)
-if mesh_fiducial.volume < 0:
-    mesh_fiducial.invert()
-
-print(f"  Fiducial volume: {mesh_fiducial.volume:.1f} m³")
-print(f"  Detector thickness: {DETECTOR_THICKNESS*100:.0f} cm")
-print(f"  Cuts: p_e > {P_CUT*1000:.0f} MeV/c, "
-      f"{SEP_MIN*1000:.0f} mm < separation < {SEP_MAX*100:.0f} cm")
 
 
 # ============================================================
@@ -594,7 +375,7 @@ if __name__ == "__main__":
     print("="*50)
     
     test_mass = 15.0
-    print(f"\nM = {test_mass} GeV → e+e-, p_cut = {P_CUT*1000:.0f} MeV/c, "
+    print(f"\nM = {test_mass} GeV → μ⁺μ⁻, p_cut = {P_CUT*1000:.0f} MeV/c, "
           f"sep: {SEP_MIN*1000:.0f} mm – {SEP_MAX*100:.0f} cm")
     print(f"\n{'p_LLP':>8} {'γ':>6} {'c_P':>7} {'θ_min':>10} "
           f"{'d(1mm)':>8} {'d(10cm)':>9} {'θ_12=10cm/1m':>14}")
