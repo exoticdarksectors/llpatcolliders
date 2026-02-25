@@ -11,15 +11,14 @@ Changes from v1:
     the signal peak, not individual sorted bins
   - Coarser binning option for low-statistics samples
 
-Uses the SAME geometry framework and CSV input format as
-decayProbPerEvent_2body.py.
+Geometry (mesh, centerline, ray-casting) is shared via gargoyle_geometry.py.
+CSV input format: event, id, pt, eta, phi, momentum, mass.
 
 Usage:
   python signal_surface_hitmap_v2.py LLP.csv              # path-length weighting
   python signal_surface_hitmap_v2.py LLP.csv 1e-7         # decay prob at τ = 100 ns
 """
 
-import sys
 import numpy as np
 import pandas as pd
 import matplotlib
@@ -40,7 +39,7 @@ SEP_MIN = 0.001     # m
 
 
 # =============================================================================
-# Acceptance (same as decayProbPerEvent_2body.py)
+# Acceptance
 # =============================================================================
 def compute_acceptance_limits(gamma, beta, mass, E_cut=E_CUT):
     c_E = (1.0 - 2.0 * E_cut / (gamma * mass)) / beta

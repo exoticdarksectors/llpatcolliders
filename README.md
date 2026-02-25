@@ -13,27 +13,39 @@ Pipeline stages:
 
 ## Main scripts
 
+### `gargoyle_geometry.py`
+- Single source of truth for all tunnel geometry (cross-section constants, centerline
+  survey data, mesh builder, ray-casting utilities).
+- Shared by all three analysis scripts — do not edit geometry in individual scripts.
+- Builds the fiducial-volume trimesh on import; exports `mesh_fiducial` and
+  `path_3d_fiducial`.
+
 ### `decayProbPerEvent_2body.py`
-- Builds tunnel fiducial mesh from survey centerline.
 - Ray-casts LLP directions from the IP to get entry/exit distances.
-- Computes lifetime-dependent decay probability with 2-body acceptance cuts.
-- Writes `particle_decay_results_2body.csv`, `event_decay_statistics_2body.csv`, and exclusion/separation plots.
+- Computes lifetime-dependent decay probability with 2-body (μ⁺μ⁻) acceptance cuts.
+- Writes `particle_decay_results_2body.csv`, `event_decay_statistics_2body.csv`, and
+  exclusion/separation plots.
 
 ### `signal_surface_hitmap_v2.py`
-- Uses the same CSV input format (`event, id, pt, eta, phi, momentum, mass`).
-- Maps accepted decays to tunnel surface coordinates.
-- Produces surface coverage and efficiency/cost optimization plots.
+- Maps accepted decays to tunnel surface coordinates (arc-length s, profile angle θ).
+- Computes contiguous-arc efficiency vs. instrumented area for detector optimization.
+- Produces surface coverage and efficiency/cost plots.
 
 ### `backgroundFullGeo.py` (optional)
 - Full-geometry muon-trident background Monte Carlo.
+- Imports the same mesh and path from `gargoyle_geometry.py`.
 - Not part of the default `howto.md` run path, but kept for dedicated background studies.
 
-## Geometry and physics constants
+### `visualize_tunnel.py`
+- Static 4-panel figure + interactive 3D plot of the tunnel geometry.
+- Useful for geometry validation (run after any change to `gargoyle_geometry.py`).
 
-Shared tunnel model parameters are defined in the Python scripts via:
-- `TUNNEL_ALPHA`, `TUNNEL_BETA`, `TUNNEL_GAMMA`, `TUNNEL_DELTA`
-- `DETECTOR_THICKNESS`
-- Centerline list `correctedVert` (shifted so the IP is at `[0,0,0]`)
+## Geometry
+
+All tunnel model parameters live in `gargoyle_geometry.py`:
+- Cross-section constants: `TUNNEL_ALPHA/BETA/GAMMA/DELTA`, `DETECTOR_THICKNESS`
+- Centerline: `correctedVertWithShift` (shifted so CMS IP5 is at `[0,0,0]`, Y=22 m above)
+- Exports: `mesh_fiducial`, `path_3d_fiducial`
 
 ## Dependencies
 

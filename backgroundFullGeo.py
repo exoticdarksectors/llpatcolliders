@@ -2,7 +2,8 @@
 Beam Muon Trident Background MC — Full Tunnel Geometry
 =======================================================
 
-Uses the identical tunnel mesh and ray-casting as the signal code.
+Imports the fiducial mesh and centerline from gargoyle_geometry.py,
+ensuring consistent geometry with the signal acceptance scripts.
 Muons originate from the IP (origin), traverse through rock + CMS,
 and enter the tunnel fiducial volume at various (eta, phi).
 
@@ -13,7 +14,7 @@ anchored to the milliQan measurement:
 For a muon at distance r:  Phi(r) = Phi_mQ × (33/r)^2
 
 Approach:
-  1. Build the tunnel fiducial mesh (identical to signal code)
+  1. Import the tunnel fiducial mesh from gargoyle_geometry.py
   2. Sample muon (eta, phi) isotropically in the solid angle 
      subtended by the tunnel
   3. Ray-cast from IP to get entry/exit points and path length
@@ -22,7 +23,8 @@ Approach:
   6. For each trident, sample pair kinematics and apply cuts
   7. Sum weights → background rate per fb^-1
 
-Compatible with: decayProbPerEvent_2body.py
+Shares geometry with: decayProbPerEvent_2body.py, signal_surface_hitmap_v2.py
+  (all three import from gargoyle_geometry.py)
 """
 
 import numpy as np
@@ -33,7 +35,6 @@ from matplotlib.gridspec import GridSpec
 from scipy.integrate import quad
 from scipy.interpolate import interp1d
 from tqdm import tqdm
-from dataclasses import dataclass
 from gargoyle_geometry import (
     TUNNEL_GAMMA, DETECTOR_THICKNESS,
     mesh_fiducial, path_3d_fiducial,
