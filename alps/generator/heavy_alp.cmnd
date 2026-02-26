@@ -1,0 +1,64 @@
+! Command file: heavy ALP production via exotic Higgs decay  h -> a a
+! ALP = Axion-Like Particle (pseudoscalar, spin-0, neutral, uncoloured)
+! Regime: few GeV to ~60 GeV  (Higgs portal coupling)
+! To scan ALP mass: change 6000113:m0 below.
+! To scan lifetime: change 6000113:tau0 (in mm).
+! To change decay mode: comment/uncomment the oneChannel line.
+
+! ---- 1) Beam & collision -----------------------------------------------
+Beams:idA = 2212                   ! proton
+Beams:idB = 2212                   ! proton
+Beams:eCM = 13600.                  ! LHC Run 3 CM energy (GeV)
+
+! ---- 2) SM Higgs production (all inclusive channels) -------------------
+HiggsSM:all = on
+25:onMode = off                    ! switch off all SM Higgs decays ...
+25:m0 = 125                        ! ... and replace with h -> a a below
+25:mMin = 125
+25:mWidth = 0.004                  ! SM-like narrow width
+
+! Add exotic decay  h -> a a  (BR set to 1; rescale yield in analysis)
+25:addChannel = 1 0.0 0 6000113 6000113
+25:76:bRatio  = 1.0                ! 100 % -> ALP pair (placeholder; rescale)
+25:76:meMode  = 100                ! generic 2-body phase space
+25:onIfAny    = 6000113            ! keep event only if an ALP is present
+
+! ---- 3) ALP particle definition ----------------------------------------
+! Self-conjugate pseudoscalar: "ALP" for both particle and anti-particle.
+! spinType=1 (spin-0), chargeType=0 (neutral), colType=0 (no colour).
+6000113:new       = ALP ALP 1 0 0
+6000113:m0        = 15             ! ALP mass in GeV  [scan: 1 -- 60 GeV]
+6000113:tau0      = 1e4            ! proper decay length c*tau_0  [mm]
+                                   ! (controls LLP displacement; scan this)
+6000113:isResonance = on
+6000113:mayDecay  = on
+
+! ---- ALP decay channel -------------------------------------------------
+! Default: a -> mu+ mu-  (lepton-coupled ALP; compatible with 2-body analysis)
+6000113:oneChannel = 1 1.0 0 13 -13
+
+! Alternative decay modes (comment in one, comment out above):
+! Photophilic ALP (dominant for photon coupling):
+!6000113:oneChannel = 1 1.0 0 22 22    ! a -> gamma gamma
+
+! Gluon/quark-coupled ALP, heavy mass (m_a > 2 m_b ~ 10 GeV):
+!6000113:oneChannel = 1 1.0 101 5 -5   ! a -> b bbar  (phase-space ME)
+
+! Tau-coupled ALP (m_a > 2 m_tau ~ 3.5 GeV):
+!6000113:oneChannel = 1 1.0 0 15 -15   ! a -> tau+ tau-
+
+! ---- 4) Run settings ---------------------------------------------------
+Init:showChangedSettings    = on
+Init:showAllSettings        = off
+Init:showChangedParticleData = on
+Init:showAllParticleData    = off
+Next:numberCount    = 1000
+Next:numberShowLHA  = 1
+Next:numberShowInfo = 1
+Next:numberShowProcess = 1
+Next:numberShowEvent   = 1
+Stat:showPartonLevel = on
+
+! ---- 5) Output ---------------------------------------------------------
+Main:numberOfEvents = 10000
+Main:writeLog = on

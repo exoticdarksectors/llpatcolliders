@@ -7,7 +7,7 @@ This repository is currently centered on a Pythia generation + signal acceptance
 See `howto.md` for the full command sequence.
 
 Pipeline stages:
-1. **Production** — `pythiaStuff/parallel_produce.sh` runs `main144` in parallel batches until a target number of LLP rows is reached. Both cmnd files use BR=1.0 (efficiency maps); rescale by true BR in analysis and always pass explicit `--xsec` (do not use the script default). Output goes to `output/`.
+1. **Production** — `generator/produce.sh` runs `generator` in parallel batches until a target number of LLP rows is reached. Both cmnd files use BR=1.0 (efficiency maps); rescale by true BR in analysis and always pass explicit `--xsec` (do not use the script default). Output goes to `output/`.
 2. **Signal acceptance** — `decayProbPerEvent_2body.py` ray-casts, computes decay probabilities, produces exclusion plots.
 3. **Surface hit-map** — `signal_surface_hitmap_v2.py` maps accepted decays to tunnel surface coordinates.
 
@@ -64,5 +64,5 @@ Python packages:
 - `tqdm`
 
 Build/runtime:
-- Pythia8 — `make.sh` auto-resolves via `$PYTHIA8_DIR` or a sibling `../pythia8315` directory.
+- Pythia8 — `generator/build.sh` auto-resolves via `$PYTHIA8_DIR` or a sibling `<repo-root>/../pythia8315` directory.
 - ROOT is not required for the default build path (CSV-only output).

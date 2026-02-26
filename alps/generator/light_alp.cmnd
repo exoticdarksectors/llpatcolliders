@@ -1,0 +1,91 @@
+! Command file: light ALP production via B-meson FCNC decays  B -> K(*) a
+! ALP = Axion-Like Particle (pseudoscalar, spin-0, neutral, uncoloured)
+! Regime: ~0.2 GeV to ~4 GeV  (below B threshold, above kinematic threshold)
+!
+! Production mechanism:
+!   pp -> bb~ (HardQCD) -> B mesons -> K(*) + ALP
+!
+! Branching ratios are set to a PLACEHOLDER value (1e-5).
+! For coupling-independent efficiency maps, set BR = 1 and rescale the
+! yield by the true coupling-dependent BR when computing signal rates.
+!
+! ALP PDG ID: 9000001  (separate slot from heavy ALP, avoids conflict)
+! The particle filter in main144 reads this via LLP:pdgId below.
+!
+! To scan ALP mass: change 9000001:m0   (range: ~0.2 -- 4 GeV)
+! To scan lifetime: change 9000001:tau0 (in mm)
+! To change decay:  comment/uncomment oneChannel lines
+
+! ---- 1) Beam & collision -----------------------------------------------
+Beams:idA = 2212
+Beams:idB = 2212
+Beams:eCM = 13600.
+
+! ---- 2) Hard b-quark pair production -----------------------------------
+HardQCD:gg2bbbar   = on
+HardQCD:qqbar2bbbar = on
+
+! ---- 3) ALP particle definition (self-conjugate pseudoscalar) ----------
+! spinType=1 (spin-0), chargeType=0, colType=0.
+! "ALP ALP" (same name for particle & anti) = real field, self-conjugate.
+9000001:new        = ALP ALP 1 0 0
+9000001:m0         = 1.0           ! ALP mass in GeV  [scan: 0.2 -- 4 GeV]
+9000001:tau0       = 1e4           ! proper decay length c*tau_0  [mm]
+9000001:isResonance = off
+9000001:mayDecay   = on
+
+! ---- ALP decay channel -------------------------------------------------
+! Default: a -> mu+ mu-  (m_a > 2 m_mu ~ 0.21 GeV; lepton-coupled ALP)
+9000001:oneChannel = 1 1.0 0 13 -13
+
+! Alternatives:
+! Very light ALP (m_a < 2 m_mu) or electron-coupled:
+!9000001:oneChannel = 1 1.0 0 11 -11   ! a -> e+ e-
+
+! Photophilic ALP:
+!9000001:oneChannel = 1 1.0 0 22 22    ! a -> gamma gamma
+
+! ---- 4) B-meson FCNC decay channels ------------------------------------
+! BR = 1.0 for efficiency maps; rescale by true BR in analysis.
+! oneChannel wipes ALL SM decays, giving exact BR(B→K(*)a) = 1.
+! addChannel adds a second ALP channel on top; Pythia normalises BRs.
+! Result: 50 % B→K a, 50 % B→K* a  (total BR(B→ALP) = 1).
+!
+! Channels: B+/- -> K+/- a,  B0/B0bar -> K0/K0bar a,
+!           B+/- -> K*+/- a, B0/B0bar -> K*0/K*0bar a
+!
+! PDG IDs:  B+ = 521, B- = -521, B0 = 511, B0bar = -511
+!           K+ = 321, K- = -321, K0 = 311, K0bar = -311
+!           K*+(892) = 323, K*-(892) = -323
+!           K*0(892) = 313, K*0bar(892) = -313
+
+521:oneChannel  = 1 1.0 0  321  9000001  ! B+    -> K+    a  (wipes SM)
+521:addChannel  = 1 1.0 0  323  9000001  ! B+    -> K*+   a
+
+-521:oneChannel = 1 1.0 0 -321  9000001  ! B-    -> K-    a  (wipes SM)
+-521:addChannel = 1 1.0 0 -323  9000001  ! B-    -> K*-   a
+
+511:oneChannel  = 1 1.0 0  311  9000001  ! B0    -> K0    a  (wipes SM)
+511:addChannel  = 1 1.0 0  313  9000001  ! B0    -> K*0   a
+
+-511:oneChannel = 1 1.0 0 -311  9000001  ! B0bar -> K0bar a  (wipes SM)
+-511:addChannel = 1 1.0 0 -313  9000001  ! B0bar -> K*0bar a
+
+! ---- 5) Tell main144 which particle ID to record in LLP.csv -----------
+LLP:pdgId = 9000001
+
+! ---- 6) Run settings ---------------------------------------------------
+Init:showChangedSettings     = on
+Init:showAllSettings         = off
+Init:showChangedParticleData = on
+Init:showAllParticleData     = off
+Next:numberCount     = 1000
+Next:numberShowLHA   = 1
+Next:numberShowInfo  = 1
+Next:numberShowProcess = 1
+Next:numberShowEvent   = 1
+Stat:showPartonLevel = on
+
+! ---- 7) Output ---------------------------------------------------------
+Main:numberOfEvents = 100000       ! overridden by parallel_produce.sh batch size
+Main:writeLog = on
