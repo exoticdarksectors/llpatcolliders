@@ -27,7 +27,7 @@ SEP_MAX = 1.0     # m — maximum separation at detector
 # Rest frame: E* = M/2,  p* = sqrt(M²/4 - m_μ²)
 # Isotropic in cosθ*, φ*
 #
-# Lab frame (boost along LLP direction, m_e → 0 limit):
+# Lab frame (boost along LLP direction, m_μ → 0 limit):
 #   E_{1,2}  = γ M/2 (1 ± β cosθ*)
 #   |p|_{1,2} ≈ E_{1,2}  (since E >> m_μ)
 #
@@ -49,12 +49,12 @@ def compute_c_upper(gamma, beta, mass, p_cut=P_CUT):
     """
     Upper limit on |cosθ*| from momentum cut and forward requirement.
     
-    Momentum cut on softer electron:
-      |p_2| > p_cut  →  E_2 > sqrt(p_cut² + m_e²)
-      γ M/2 (1 - β|cosθ*|) > sqrt(p_cut² + m_e²)
-      |cosθ*| < (1 - 2·sqrt(p_cut² + m_e²) / (γM)) / β
-    
-    Forward requirement: both electrons forward → |cosθ*| < β
+    Momentum cut on softer muon:
+      |p_2| > p_cut  →  E_2 > sqrt(p_cut² + m_μ²)
+      γ M/2 (1 - β|cosθ*|) > sqrt(p_cut² + m_μ²)
+      |cosθ*| < (1 - 2·sqrt(p_cut² + m_μ²) / (γM)) / β
+
+    Forward requirement: both muons forward → |cosθ*| < β
     """
     E_min = np.sqrt(p_cut**2 + M_DAUGHTER**2)
     c_P = (1.0 - 2.0 * E_min / (gamma * mass)) / beta
@@ -220,10 +220,20 @@ def process_with_acceptance(csv_file_or_df, lifetime_seconds, geo_cache,
 
 def analyze_decay_vs_lifetime(csv_file, geo_cache, lifetime_range,
                                p_cut=P_CUT, sep_min=SEP_MIN, sep_max=SEP_MAX,
-                               xsec_fb=52E3, lumi_fb=3000):
+                               xsec_fb=60E3, lumi_fb=3000,
+                               n_generated=None):
     df_base = pd.read_csv(csv_file)
     df_base.columns = df_base.columns.str.strip()
-    n_events = df_base['event'].nunique()
+    n_llp_events = df_base['event'].nunique()
+
+    # n_generated = total Pythia events (including those with 0 LLPs).
+    # Events with 0 LLPs contribute P(≥1 decay)=0 to the average.
+    if n_generated is None:
+        n_generated = n_llp_events
+    if n_generated < n_llp_events:
+        print(f"WARNING: n_generated ({n_generated}) < n_llp_events "
+              f"({n_llp_events}); using n_llp_events as denominator.")
+        n_generated = n_llp_events
 
     results = {
         'lifetimes': lifetime_range,
@@ -235,22 +245,25 @@ def analyze_decay_vs_lifetime(csv_file, geo_cache, lifetime_range,
         'exclusion': [],
         'exclusion_no_cuts': [],
         'mean_acceptance': [],
-        'total_events': n_events
+        'n_generated': n_generated,
+        'n_llp_events': n_llp_events,
     }
 
     for lifetime in tqdm(lifetime_range, desc="Scanning lifetimes"):
         df, event_df = process_with_acceptance(
             df_base, lifetime, geo_cache, p_cut, sep_min, sep_max)
-        
+
         hits = df[df['hits_tube']]
         mean_single = hits['decay_probability'].mean() if len(hits) > 0 else 0
         mean_single_nc = hits['decay_probability_no_cuts'].mean() if len(hits) > 0 else 0
         mean_acc = hits['acceptance'].mean() if len(hits) > 0 else 0
-        
-        mean_p1 = event_df['prob_at_least_one_decays'].mean()
-        mean_p1_nc = event_df['prob_at_least_one_no_cuts'].mean()
-        mean_both = event_df['prob_both_decay'].mean()
-        
+
+        # Average over ALL generated events: events without LLPs
+        # contribute P(≥1)=0, so sum(P1) / n_generated is correct.
+        mean_p1 = event_df['prob_at_least_one_decays'].sum() / n_generated
+        mean_p1_nc = event_df['prob_at_least_one_no_cuts'].sum() / n_generated
+        mean_both = event_df['prob_both_decay'].sum() / n_generated
+
         results['mean_single_particle_decay_prob'].append(mean_single)
         results['mean_single_no_cuts'].append(mean_single_nc)
         results['mean_at_least_one_decay_prob'].append(mean_p1)
@@ -261,7 +274,7 @@ def analyze_decay_vs_lifetime(csv_file, geo_cache, lifetime_range,
         results['exclusion'].append(3 / denom if denom > 0 else np.inf)
         results['exclusion_no_cuts'].append(3 / denom_nc if denom_nc > 0 else np.inf)
         results['mean_acceptance'].append(mean_acc)
-    
+
     return results
 
 
@@ -269,7 +282,7 @@ def sample_separations(geo_cache, lifetime_seconds, n_samples_per_particle=100,
                        rng_seed=42):
     """
     Monte Carlo sample decay positions and rest-frame angles to build
-    a distribution of electron-pair separations at the detector.
+    a distribution of muon-pair separations at the detector.
     
     For each particle that hits the fiducial volume:
       1. Sample decay position d from (1/λ) exp(-d/λ) within [entry, exit]
@@ -358,25 +371,46 @@ if __name__ == "__main__":
     import argparse
     import os
     import sys
+    import json
     parser = argparse.ArgumentParser()
     parser.add_argument("csv_file", nargs="?", default="LLP.csv")
-    parser.add_argument("--xsec", type=float, default=52E3,
-                        help="production cross-section in fb (default: 52e3 for bb̄)")
+    parser.add_argument("--xsec", type=float, default=60E3,
+                        help="production cross-section in fb "
+                             "(heavy ALP: ~60e3 for pp→h; "
+                             "light ALP: ~373e6 for inclusive pp→bb̄)")
     parser.add_argument("--lumi", type=float, default=3000,
                         help="integrated luminosity in fb⁻¹ (default: 3000)")
     parser.add_argument("--outdir", default="output",
                         help="output directory for plots and CSVs (default: output)")
+    parser.add_argument("--n-events", type=int, default=None,
+                        help="total generated events (including 0-LLP events). "
+                             "Auto-read from <csv>_meta.json if available.")
     args = parser.parse_args()
     xsec_arg_given = any(
         tok == "--xsec" or tok.startswith("--xsec=")
         for tok in sys.argv[1:]
     )
     if not xsec_arg_given:
-        print("WARNING: --xsec not provided; using default 52e3 fb.")
-        print("         For HL-LHC studies, pass benchmark-specific --xsec explicitly.")
+        print("WARNING: --xsec not provided; using default 60e3 fb (pp→h).")
+        print("         For light ALP (pp→bb̄): use --xsec 373e6.")
+        print("         Always pass benchmark-specific --xsec explicitly.")
     os.makedirs(args.outdir, exist_ok=True)
     sample_csv = args.csv_file
     output_tag = os.path.basename(sample_csv).replace('.csv', '')
+
+    # Resolve n_generated: CLI > meta.json > fallback to CSV-only events
+    n_generated = args.n_events
+    if n_generated is None:
+        meta_path = sample_csv.replace('.csv', '_meta.json')
+        if os.path.isfile(meta_path):
+            with open(meta_path) as f:
+                meta = json.load(f)
+            n_generated = meta['n_generated']
+            print(f"Read n_generated={n_generated} from {meta_path}")
+        else:
+            print(f"WARNING: no _meta.json found ({meta_path}).")
+            print("         Using CSV event count (0-LLP events missing!).")
+            print("         Pass --n-events or re-run production to fix.")
     separation_plot_name = f"separation_histogram_{output_tag}.png"
     exclusion_plot_name = f"exclusion_2body_{output_tag}.png"
     origin = [0, 0, 0]
@@ -388,12 +422,12 @@ if __name__ == "__main__":
     print("ACCEPTANCE DIAGNOSTICS")
     print("="*50)
     
-    test_mass = 15.0
-    print(f"\nM = {test_mass} GeV → μ⁺μ⁻, p_cut = {P_CUT*1000:.0f} MeV/c, "
+    test_mass = geo_cache['mass'][0]
+    print(f"\nM = {test_mass:.2f} GeV → μ⁺μ⁻, p_cut = {P_CUT*1000:.0f} MeV/c, "
           f"sep: {SEP_MIN*1000:.0f} mm – {SEP_MAX*100:.0f} cm")
     print(f"\n{'p_LLP':>8} {'γ':>6} {'c_P':>7} {'θ_min':>10} "
           f"{'d(1mm)':>8} {'d(10cm)':>9} {'θ_12=10cm/1m':>14}")
-    
+
     for p_test in [20, 50, 100, 200, 500]:
         E = np.sqrt(p_test**2 + test_mass**2)
         g = E / test_mass
@@ -406,12 +440,16 @@ if __name__ == "__main__":
         sep_at_1m = theta_min * 1.0
         print(f"{p_test:>8.0f} {g:>6.1f} {c_P:>7.4f} {theta_min*1000:>8.1f} mrad "
               f"{d_min_sep*100:>7.2f}cm {d_max_sep:>7.1f}m {sep_at_1m*100:>12.1f}cm")
-    
+
     # Show how max sep constrains high-γ particles
+    g_lo = np.sqrt(20**2 + test_mass**2) / test_mass
+    g_hi = np.sqrt(500**2 + test_mass**2) / test_mass
     print(f"\nMax sep cut effect: at d_remaining = 1m, θ_max = {SEP_MAX}m / 1m = 100 mrad")
     print("  → kills decays far from detector for low-γ (large opening angle)")
-    print(f"  → for γ=1.67 (p=20 GeV): θ_min=1200 mrad >> 100 mrad → heavily constrained")
-    print(f"  → for γ=33.4 (p=500 GeV): θ_min=60 mrad < 100 mrad → mostly unconstrained")
+    print(f"  → for γ={g_lo:.1f} (p=20 GeV): θ_min={2/g_lo*1000:.0f} mrad "
+          f"{'>> 100 mrad → heavily constrained' if 2/g_lo*1000 > 100 else '<= 100 mrad → mostly unconstrained'}")
+    print(f"  → for γ={g_hi:.1f} (p=500 GeV): θ_min={2/g_hi*1000:.0f} mrad "
+          f"{'>> 100 mrad → heavily constrained' if 2/g_hi*1000 > 100 else '<= 100 mrad → mostly unconstrained'}")
     
     # Single lifetime
     print("\n" + "="*50)
@@ -429,8 +467,13 @@ if __name__ == "__main__":
         print(f"  Mean acceptance: {hits['acceptance'].mean():.4f}")
         print(f"  Mean P_decay (with cuts):    {hits['decay_probability'].mean():.6f}")
         print(f"  Mean P_decay (without cuts): {hits['decay_probability_no_cuts'].mean():.6f}")
-    print(f"  Mean P(≥1) with cuts:    {event_df['prob_at_least_one_decays'].mean():.6e}")
-    print(f"  Mean P(≥1) without cuts: {event_df['prob_at_least_one_no_cuts'].mean():.6e}")
+    n_llp_events = event_df.shape[0]
+    n_denom = n_generated if n_generated is not None else n_llp_events
+    mean_p1_all = event_df['prob_at_least_one_decays'].sum() / n_denom
+    mean_p1_nc_all = event_df['prob_at_least_one_no_cuts'].sum() / n_denom
+    print(f"  Events with LLPs: {n_llp_events} / {n_denom} generated")
+    print(f"  Mean P(≥1) with cuts:    {mean_p1_all:.6e}")
+    print(f"  Mean P(≥1) without cuts: {mean_p1_nc_all:.6e}")
     
     # --- Separation histogram ---
     print("\n" + "="*50)
@@ -445,7 +488,8 @@ if __name__ == "__main__":
         
         # (a) All separations, decay-probability weighted
         ax = axes_sep[0]
-        bins = np.linspace(0, 0.5, 100)  # 0 to 50 cm
+        lin_xmax = 1.05 * SEP_MAX
+        bins = np.linspace(0, lin_xmax, 100)
         ax.hist(seps, bins=bins, weights=weights, color='steelblue',
                 edgecolor='black', linewidth=0.3, alpha=0.8)
         ax.axvline(SEP_MIN, color='red', linestyle='--', linewidth=2,
@@ -458,7 +502,7 @@ if __name__ == "__main__":
         ax.set_title(f'Separation distribution (τ = {lifetime*1e9:.0f} ns)\n'
                      f'All decays, weighted by P(decay)')
         ax.legend(fontsize=9)
-        ax.set_xlim(0, 0.5)
+        ax.set_xlim(0, lin_xmax)
         
         # (b) Log-scale zoom to see the tails and cut region
         ax2 = axes_sep[1]
@@ -509,10 +553,13 @@ if __name__ == "__main__":
     print("\n" + "="*50)
     print("LIFETIME SCAN")
     print("="*50)
-    
+    print(f"  σ = {args.xsec:.3g} fb,  L = {args.lumi:.0f} fb⁻¹")
+    print(f"  n_generated = {n_generated if n_generated is not None else '(unknown — using CSV events only)'}")
+
     lifetimes = np.logspace(-9.5, -4.5, 20)
     scan = analyze_decay_vs_lifetime(sample_csv, geo_cache, lifetimes,
-                                     xsec_fb=args.xsec, lumi_fb=args.lumi)
+                                     xsec_fb=args.xsec, lumi_fb=args.lumi,
+                                     n_generated=n_generated)
     
     # === Plotting ===
     fig, axes = plt.subplots(2, 2, figsize=(14, 10))
@@ -555,14 +602,18 @@ if __name__ == "__main__":
     # Plot 4: Exclusion curves
     ax4 = axes[1, 1]
     ax4.loglog(lifetimes * SPEED_OF_LIGHT, scan['exclusion'],
-               color='blue', linewidth=2, label="milliQan (with cuts)")
+               color='blue', linewidth=2, label="PX56 (with cuts)")
     ax4.loglog(lifetimes * SPEED_OF_LIGHT, scan['exclusion_no_cuts'],
                color='blue', linewidth=2, linestyle='--', alpha=0.5,
-               label="milliQan (no cuts)")
+               label="PX56 (no cuts)")
     ax4.set_xlabel(r'$c\tau$ (m)')
-    ax4.set_ylabel('BR')
+    ax4.set_ylabel(r'BR$(B \to K^{(*)} a)_{\min}$')
     ax4.grid(True, which="both", ls="-", alpha=0.2)
     
+    # WARNING: these external CSVs are dark-Higgs (H(125)->SS) exclusion contours
+    # at m_S = 1 and 15 GeV.  They are a valid comparison for the heavy-ALP
+    # (h->aa) sample only.  For light-ALP (B->K(*)a) samples they are the
+    # wrong BSM model and must be replaced — see code_review.md P5.
     ext_curves = [
         ("MATHUSLA", "external/MATHUSLA.csv", "green", "-"),
         ("CODEX-b", "external/CODEX.csv", "cyan", "-"),
@@ -586,3 +637,6 @@ if __name__ == "__main__":
     event_df.to_csv(os.path.join(args.outdir, "event_decay_statistics_2body.csv"), index=False)
     print("\nResults saved to", args.outdir)
     print(f"Plots: {exclusion_plot_name}, {separation_plot_name}")
+    print(f"\nNormalization: n_generated={scan['n_generated']}, "
+          f"n_llp_events={scan['n_llp_events']} "
+          f"(0-LLP fraction: {1 - scan['n_llp_events']/scan['n_generated']:.1%})")

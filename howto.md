@@ -10,32 +10,40 @@ make -j(sysctl -n hw.logicalcpu)
 
 # Build main144 (auto-finds Pythia8 via $PYTHIA8_DIR or sibling ../pythia8315):
 cd /path/to/llpatcolliders/pythiaStuff
-export PYTHIA8_DIR=/path/to/pythia8315  # only needed if not a sibling dir
+set -x PYTHIA8_DIR /path/to/pythia8315 # only needed if not a sibling dir
 bash make.sh
 ```
 
 ## Production (from pythiaStuff/)
 
 ```fish
-# Optional reset BEFORE starting a fresh production (destructive: removes output/*.csv):
+# Optional reset BEFORE starting a fresh production (removes alps/output/*.csv + *_meta.json):
 # bash clean_production.sh --all
 
 bash parallel_produce.sh higgsLL.cmnd  10000 alp_heavy_m15
 bash parallel_produce.sh alp_meson.cmnd 10000 alp_light_m1
+# Each run produces:
+#   alps/output/<name>.csv        — LLP kinematics
+#   alps/output/<name>_meta.json  — n_generated, n_with_llp (needed for correct normalization)
 ```
 
-## Analysis (from repo root)
+## Analysis (from alps/)
 
 ```fish
+cd alps
 conda activate llpatcolliders
 
 # Always pass --xsec explicitly (do not rely on decayProbPerEvent_2body.py default).
 # HL-LHC baseline: sqrt(s)=14 TeV, L=3000 fb^-1.
+# Heavy ALP (h→aa): xsec = sigma(pp→h) ≈ 60 pb = 60000 fb
 set XSEC_HEAVY_FB 60000
-# Light sample (alp_meson.cmnd): set benchmark-specific effective rate
-# XSEC_LIGHT_FB = sigma(pp->bb, generator cuts) * P(B->K(*)a), in fb.
-set XSEC_LIGHT_FB 52000  # placeholder only; replace for your coupling benchmark
+# Light ALP (B→Ka): xsec = sigma(pp→bb̄, inclusive) from Pythia ≈ 0.37 mb = 3.73e8 fb.
+# The generator uses BR(B→Ka)=1; the exclusion curve gives BR_min directly.
+set XSEC_LIGHT_FB 373000000
 
+# The analysis auto-reads <csv>_meta.json for the total number of generated events.
+# Without it, 0-LLP events are missing from the average and sensitivity is overstated.
+# If no meta file exists, pass --n-events <total_generated> manually.
 python decayProbPerEvent_2body.py output/alp_heavy_m15.csv --xsec $XSEC_HEAVY_FB --lumi 3000
 python decayProbPerEvent_2body.py output/alp_light_m1.csv --xsec $XSEC_LIGHT_FB --lumi 3000
 

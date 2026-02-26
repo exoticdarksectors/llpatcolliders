@@ -16,6 +16,7 @@ pythiaStuff/*.yoda
 # ---- Analysis output (regenerate with Python scripts) ------------------
 particle_decay_results*.csv
 *_surface_hitmap_v2.png
+*_meta.json
 *.png
 *.pdf
 *.log

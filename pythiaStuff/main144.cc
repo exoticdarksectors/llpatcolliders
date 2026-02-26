@@ -289,6 +289,9 @@ int main(int argc, char* argv[]) {
   // Loop over events.
   auto startAllEvents = std::chrono::high_resolution_clock::now();
   int llpId = pythia.mode("LLP:pdgId");
+  int nGenerated = 0;        // total events that passed pythia.next()
+  int nWithLLP   = 0;        // events containing >= 1 LLP
+  int nTotalLLP  = 0;        // total LLP particles across all events
   ofstream myfile;
   myfile.open (out + ".csv");
   myfile << "event,id,pt,eta,phi,momentum,mass\n";
@@ -306,6 +309,7 @@ int main(int argc, char* argv[]) {
       }
       continue;
     }
+    ++nGenerated;
 
     // Calculate the event time.
     auto stopThisEvent = std::chrono::high_resolution_clock::now();
@@ -323,13 +327,17 @@ int main(int argc, char* argv[]) {
 #endif
 
     // Write LLP to CSV (always active, no ROOT required).
+    int nLLPthis = 0;
     for (int iPrt = 0; iPrt < pythia.event.size(); ++iPrt) {
       Particle& prt = pythia.event[iPrt];
       if (abs(prt.id()) != llpId) continue;
       myfile << iEvent << "," << prt.id() << "," << prt.pT() << ","
              << prt.eta() << "," << prt.phi() << "," << prt.pAbs()
              << "," << prt.m() << "\n";
+      ++nLLPthis;
     }
+    if (nLLPthis > 0) ++nWithLLP;
+    nTotalLLP += nLLPthis;
 
     // Write to ROOT TTree (optional, requires -DPY8ROOT at compile time).
 #ifdef PY8ROOT
@@ -347,6 +355,19 @@ int main(int argc, char* argv[]) {
 
   // Finalize.
   myfile.close();
+
+  // Write metadata sidecar (JSON) for analysis normalisation.
+  {
+    ofstream meta(out + "_meta.json");
+    meta << "{\n"
+         << "  \"n_generated\": " << nGenerated << ",\n"
+         << "  \"n_with_llp\": " << nWithLLP << ",\n"
+         << "  \"n_total_llp\": " << nTotalLLP << ",\n"
+         << "  \"llp_pdg_id\": " << llpId << ",\n"
+         << "  \"sqrt_s\": " << pythia.info.eCM() << "\n"
+         << "}" << endl;
+    meta.close();
+  }
   pythia.stat();
 #ifdef PY8ROOT
   if (writeRoot) {

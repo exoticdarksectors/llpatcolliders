@@ -4,7 +4,7 @@ set -euo pipefail
 # Usage: bash parallel_produce.sh <cmnd_file> <target_llps> <output_name> [n_jobs] [batch_size]
 #
 # Runs main144 in parallel batches until the CSV has >= target_llps rows.
-# Output CSV goes to ../output/<output_name>.csv
+# Output CSV goes to ../alps/output/<output_name>.csv
 #
 # Examples:
 #   bash parallel_produce.sh higgsLL.cmnd  10000 alp_heavy_m15
@@ -16,7 +16,7 @@ NAME="$(basename "${3:?}")"
 NJOBS="${4:-$(( $(sysctl -n hw.physicalcpu) - 1 ))}"
 BATCH="${5:-10000}"         # Pythia events per job per round
 
-OUTDIR="../output"
+OUTDIR="../alps/output"
 mkdir -p "$OUTDIR"
 CSV="${OUTDIR}/${NAME}.csv"
 TMP="${OUTDIR}/.${NAME}_part"
@@ -30,6 +30,8 @@ seed=0
 offset=0
 MAX_ROUNDS=200
 consec_empty=0
+total_gen=0
+total_with_llp=0
 
 echo "Target: $TARGET LLP rows | $NJOBS parallel jobs | $BATCH events/job/round"
 echo "Output: $CSV"
@@ -55,7 +57,7 @@ while [ "$count" -lt "$TARGET" ]; do
     for pid in "${pids[@]}"; do wait "$pid" || ((failed++)) || true; done
     if [ "$failed" -gt 0 ]; then echo "  WARNING: $failed job(s) failed"; fi
 
-    # Append results with renumbered event IDs
+    # Append results with renumbered event IDs; aggregate metadata
     for i in $(seq $((seed - NJOBS + 1)) "$seed"); do
         f="${TMP}_${i}.csv"
         [ -f "$f" ] || continue
@@ -63,6 +65,15 @@ while [ "$count" -lt "$TARGET" ]; do
             'NR>1{$1=$1+off; print $1,$2,$3,$4,$5,$6,$7}' "$f" >> "$CSV"
         last_evt=$(awk -F',[[:space:]]*' 'NR>1{last=$1} END{print (NR>1 ? last : -1)+0}' "$f")
         offset=$((offset + last_evt + 1))
+        # Accumulate metadata from batch sidecar
+        mf="${TMP}_${i}_meta.json"
+        if [ -f "$mf" ]; then
+            ng=$(awk -F': *' '/"n_generated"/{gsub(/[^0-9]/,"",$2); print $2}' "$mf")
+            nw=$(awk -F': *' '/"n_with_llp"/{gsub(/[^0-9]/,"",$2); print $2}' "$mf")
+            total_gen=$((total_gen + ${ng:-0}))
+            total_with_llp=$((total_with_llp + ${nw:-0}))
+            rm -f "$mf"
+        fi
         rm -f "$f" "${TMP}_${i}.log"
     done
 
@@ -79,4 +90,16 @@ while [ "$count" -lt "$TARGET" ]; do
     fi
 done
 
+# Write aggregated metadata sidecar
+META="${OUTDIR}/${NAME}_meta.json"
+cat > "$META" <<EOF
+{
+  "n_generated": $total_gen,
+  "n_with_llp": $total_with_llp,
+  "n_total_llp": $count
+}
+EOF
+
 echo "Done: $count LLP rows in $CSV (after $round round(s), $seed total Pythia jobs)"
+echo "  Generated events: $total_gen | Events with LLP: $total_with_llp"
+echo "  Metadata: $META"

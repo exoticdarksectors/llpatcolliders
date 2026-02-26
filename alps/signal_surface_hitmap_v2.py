@@ -32,19 +32,19 @@ from gargoyle_geometry import (
     mesh_fiducial, path_3d_fiducial,
 )
 
-E_CUT = 0.600       # GeV
-SEP_MIN = 0.001     # m
-
-
+M_DAUGHTER = 0.10566  # GeV/c² (muon mass, matching generator decay a → μ⁺μ⁻)
+P_CUT   = 0.600      # GeV/c — minimum daughter momentum
+SEP_MIN = 0.001      # m — minimum separation at detector (1 mm)
 
 
 # =============================================================================
-# Acceptance
+# Acceptance  (matches decayProbPerEvent_2body.py model, minus SEP_MAX)
 # =============================================================================
-def compute_acceptance_limits(gamma, beta, mass, E_cut=E_CUT):
-    c_E = (1.0 - 2.0 * E_cut / (gamma * mass)) / beta
-    c_E = min(c_E, 1.0)
-    return min(c_E, beta)
+def compute_acceptance_limits(gamma, beta, mass, p_cut=P_CUT):
+    E_min = np.sqrt(p_cut**2 + M_DAUGHTER**2)
+    c_P = (1.0 - 2.0 * E_min / (gamma * mass)) / beta
+    c_P = min(c_P, 1.0)
+    return min(c_P, beta)
 
 def compute_c_S(d_remaining, gamma, beta, sep_min=SEP_MIN):
     if d_remaining <= 0:
@@ -62,8 +62,8 @@ def compute_c_S(d_remaining, gamma, beta, sep_min=SEP_MIN):
     return np.sqrt(val)
 
 def acceptance_at_exit(gamma, beta, mass, d_remaining=0.01,
-                       E_cut=E_CUT, sep_min=SEP_MIN):
-    c_max = compute_acceptance_limits(gamma, beta, mass, E_cut)
+                       p_cut=P_CUT, sep_min=SEP_MIN):
+    c_max = compute_acceptance_limits(gamma, beta, mass, p_cut)
     if c_max <= 0:
         return 0.0
     c_S = compute_c_S(d_remaining, gamma, beta, sep_min)
@@ -439,8 +439,10 @@ def run_analysis(csv_file, lifetime_seconds=None, outdir="output"):
         weights = decay_prob[hits]
         weight_label = f'Decay prob (τ={lifetime_seconds:.1e}s)'
     else:
+        print("\n  NOTE: no lifetime given → using path-length weighting")
+        print("  (long-lifetime proxy; pass τ in seconds for full decay law)")
         weights = path_l.copy()
-        weight_label = 'Path length weight'
+        weight_label = 'Path length weight (no lifetime)'
 
     if weights.sum() == 0:
         print("All weights are zero. Exiting.")
@@ -639,7 +641,7 @@ def run_analysis(csv_file, lifetime_seconds=None, outdir="output"):
     plt.colorbar(im, ax=ax, label='Signal weight')
     ax.set_xlabel('Distance along tunnel (m)')
     ax.set_ylabel('Angle around profile (deg)')
-    ax.set_title('Signal Hit Distribution (exit points — where e⁺e⁻ hit wall)')
+    ax.set_title('Signal Hit Distribution (exit points — where μ⁺μ⁻ hit wall)')
     for angle_deg in boundary_angles_deg:
         ax.axhline(y=angle_deg, color='cyan', alpha=0.6, ls='--', lw=1)
     for name, pos in label_positions.items():

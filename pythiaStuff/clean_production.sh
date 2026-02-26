@@ -12,7 +12,7 @@ set -euo pipefail
 #   bash clean_production.sh --all
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-OUTDIR="${SCRIPT_DIR}/../output"
+OUTDIR="${SCRIPT_DIR}/../alps/output"
 
 usage() {
   cat <<'EOF'
@@ -21,12 +21,12 @@ Usage:
   bash clean_production.sh --all
 
 Removes files produced by parallel_produce.sh:
-  - output/<output_name>.csv
-  - output/.<output_name>_part_*.csv
-  - output/.<output_name>_part_*.log
-  - output/.<output_name>_part_*.root
+  - alps/output/<output_name>.csv
+  - alps/output/.<output_name>_part_*.csv
+  - alps/output/.<output_name>_part_*.log
+  - alps/output/.<output_name>_part_*.root
 
-With --all, removes all matching production outputs in output/.
+With --all, removes all matching production outputs in alps/output/.
 EOF
 }
 
@@ -58,6 +58,7 @@ if [[ "$target" == "--all" ]]; then
   shopt -s nullglob
   all_files=(
     "$OUTDIR"/*.csv
+    "$OUTDIR"/*_meta.json
     "$OUTDIR"/.*_part_*.csv
     "$OUTDIR"/.*_part_*.log
     "$OUTDIR"/.*_part_*.root
@@ -78,6 +79,9 @@ name="$(basename "$target")"
 files=()
 if [[ -e "$OUTDIR/$name.csv" ]]; then
   files+=("$OUTDIR/$name.csv")
+fi
+if [[ -e "$OUTDIR/${name}_meta.json" ]]; then
+  files+=("$OUTDIR/${name}_meta.json")
 fi
 
 shopt -s nullglob

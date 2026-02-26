@@ -24,10 +24,6 @@ Beams:eCM = 13600.
 ! ---- 2) Hard b-quark pair production -----------------------------------
 HardQCD:gg2bbbar   = on
 HardQCD:qqbar2bbbar = on
-PhaseSpace:pTHatMin = 20          ! GeV — WARNING: biases sample toward high-pT
-                                   ! B mesons. Misses ~95% of bb xsec. Standard
-                                   ! practice (MATHUSLA/CODEX-b/DDC) uses pTHatMin=0
-                                   ! or FONLL. Remove for final physics result.
 
 ! ---- 3) ALP particle definition (self-conjugate pseudoscalar) ----------
 ! spinType=1 (spin-0), chargeType=0, colType=0.
@@ -51,6 +47,10 @@ PhaseSpace:pTHatMin = 20          ! GeV — WARNING: biases sample toward high-p
 
 ! ---- 4) B-meson FCNC decay channels ------------------------------------
 ! BR = 1.0 for efficiency maps; rescale by true BR in analysis.
+! oneChannel wipes ALL SM decays, giving exact BR(B→K(*)a) = 1.
+! addChannel adds a second ALP channel on top; Pythia normalises BRs.
+! Result: 50 % B→K a, 50 % B→K* a  (total BR(B→ALP) = 1).
+!
 ! Channels: B+/- -> K+/- a,  B0/B0bar -> K0/K0bar a,
 !           B+/- -> K*+/- a, B0/B0bar -> K*0/K*0bar a
 !
@@ -59,14 +59,16 @@ PhaseSpace:pTHatMin = 20          ! GeV — WARNING: biases sample toward high-p
 !           K*+(892) = 323, K*-(892) = -323
 !           K*0(892) = 313, K*0bar(892) = -313
 
-521:addChannel  = 1 1.0 0  321  9000001  ! B+    -> K+    a
--521:addChannel = 1 1.0 0 -321  9000001  ! B-    -> K-    a
-511:addChannel  = 1 1.0 0  311  9000001  ! B0    -> K0    a
--511:addChannel = 1 1.0 0 -311  9000001  ! B0bar -> K0bar a
-
+521:oneChannel  = 1 1.0 0  321  9000001  ! B+    -> K+    a  (wipes SM)
 521:addChannel  = 1 1.0 0  323  9000001  ! B+    -> K*+   a
+
+-521:oneChannel = 1 1.0 0 -321  9000001  ! B-    -> K-    a  (wipes SM)
 -521:addChannel = 1 1.0 0 -323  9000001  ! B-    -> K*-   a
+
+511:oneChannel  = 1 1.0 0  311  9000001  ! B0    -> K0    a  (wipes SM)
 511:addChannel  = 1 1.0 0  313  9000001  ! B0    -> K*0   a
+
+-511:oneChannel = 1 1.0 0 -311  9000001  ! B0bar -> K0bar a  (wipes SM)
 -511:addChannel = 1 1.0 0 -313  9000001  ! B0bar -> K*0bar a
 
 ! ---- 5) Tell main144 which particle ID to record in LLP.csv -----------

@@ -12,8 +12,8 @@ Pipeline stages:
 3. **Surface hit-map** — `signal_surface_hitmap_v2.py` maps accepted decays to tunnel surface coordinates.
 
 HL-LHC normalization notes (`sqrt(s)=14 TeV`, `L=3000 fb^-1`):
-- Heavy (`h -> aa`): use benchmark `sigma(pp->h)` (e.g. ~60 pb) and interpret limits via your `BR(h->aa)`/visible-decay assumptions.
-- Light (`B -> K(*)a`): use benchmark-specific effective `xsec = sigma(pp->bb, cuts) * P(B->K(*)a)`; do not use a fixed generic value for physics conclusions.
+- Heavy (`h -> aa`): `--xsec 60000` (σ(pp→h) ≈ 60 pb). Exclusion curve gives BR(h→aa)_min.
+- Light (`B -> K(*)a`): `--xsec 373000000` (σ(pp→bb̄, inclusive) ≈ 0.37 mb from Pythia at 13.6 TeV). Generator uses BR(B→Ka)=1, so the exclusion curve gives BR(B→Ka)_min directly.
 
 ## Main scripts
 

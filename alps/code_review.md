@@ -8,7 +8,16 @@
 
 ### 1.1 Physics
 
-- **P4** (`pythiaStuff/alp_meson.cmnd:27`) — `PhaseSpace:pTHatMin = 20` removes ~95-98% of the bb cross section. 86% of tunnel-hitting ALPs have pT < 20 GeV; these currently come from the tail of pTHat > 20 events after fragmentation, but an unknown additional contribution from the missing pTHat < 20 population is unaccounted for. No published far-detector LLP analysis (MATHUSLA, CODEX-b, ANUBIS, DDC) uses a pTHatMin cut for B-meson production — the standard is full-pT FONLL or Pythia with pTHatMin = 0. **Action: remove pTHatMin for the final paper result, or regenerate with FONLL-based B spectra. Until then, flag as a known limitation.**
+- **P5** ★ CRITICAL (`external/*.csv` + `decayProbPerEvent_2body.py`) — **External comparison curves are for dark Higgs only; unusable for alps.**
+  The CSV files in `external/` (MATHUSLA.csv, CODEX.csv, ANUBIS.csv, ANUBISOpt.csv, ANUBISUpdateCons.csv) were digitized from **dark Higgs** (H(125)→SS) exclusion contours at m_S = 1 and 15 GeV. They plot BR(h→SS) vs cτ. All 5 curves have peak sensitivity at cτ ~ 4–30 m and are overlaid unconditionally on every exclusion plot regardless of the sample being analyzed.
+  - **Heavy ALP (h→aa, m=15 GeV):** The curves are a **valid comparison** — same production mechanism (h→XX), same mass, similar boost distribution. Scalar-vs-pseudoscalar is a second-order effect for geometric acceptance. However, confirm with Matt which specific curves are at 15 GeV vs 1 GeV, and only overlay the mass-matched subset.
+  - **Light ALP (B→Ka, m=1 GeV):** The curves are **invalid** even at 1 GeV. Production is h→SS (Higgs portal, isotropic in Higgs rest frame) vs B→Ka (FCNC, forward-boosted B mesons). Completely different boost/angular distributions and production cross-sections. The overlay is an apples-to-oranges comparison and **must not appear in the paper**.
+  - For the alps branch, new external comparison curves must be digitized from published **light-scalar-via-B-decay** sensitivity studies:
+    - MATHUSLA: [arXiv:1806.07396](https://arxiv.org/abs/1806.07396) §9.1 (SM+S scalar via B decay); data files at [MATHUSLA_LLPfiles_SMS](https://github.com/davidrcurtin/MATHUSLA_LLPfiles_SMS)
+    - CODEX-b: [arXiv:1911.00481](https://arxiv.org/abs/1911.00481), [arXiv:2203.07316](https://arxiv.org/abs/2203.07316)
+    - ANUBIS: [arXiv:1909.13022](https://arxiv.org/abs/1909.13022), [arXiv:2401.11604](https://arxiv.org/abs/2401.11604)
+  - Note: published light-scalar curves use **sin²θ vs mS** axes, not BR vs cτ. Either convert our plot to that parameter space or map their contours to BR(B→KS) vs cτ using BR ∝ sin²θ and cτ ∝ 1/sin²θ.
+  - **Action:** (1) Ask Matt which CSVs are at 1 GeV and which at 15 GeV. (2) For the higgs branch, only overlay the mass-matched curves. (3) For the alps branch, digitize B→KS exclusion contours from the above references, save as new CSVs (e.g. `external/MATHUSLA_BKS.csv`), and load those instead. (4) Do not use the existing `external/` CSVs for alps plots.
 
 ### 1.2 Portability
 
@@ -18,7 +27,7 @@
 
 ### 2.1 Bugs / correctness
 
-*(none remaining)*
+*(none remaining — see §3 for fixes applied this session)*
 
 ### 2.2 Warnings
 
@@ -58,6 +67,12 @@
 - ~~**W12**~~ — Added `MAX_ROUNDS=200` and consecutive-zero-progress guard (3 rounds) to parallel_produce.sh. Script now aborts with an error message instead of looping forever.
 - ~~**W13**~~ — clean_production.sh now also cleans `*.root` fragments.
 - ~~**E5**~~ — `make.sh` no longer hardcodes a user-specific `PYTHIA=` path. Now resolves via `$PYTHIA8_DIR` > sibling `../pythia8315` > `/usr/local` fallback. `howto.md` uses generic placeholders.
+- ~~**P4**~~ — `pTHatMin = 20` removed from `alp_meson.cmnd`; generation is now inclusive (pTHatMin=0, standard practice). Existing samples must be regenerated.
+- ~~**P4b**~~ — `--xsec` default and docs corrected: light ALP now uses σ(pp→bb̄, inclusive) = 3.73×10⁸ fb (from Pythia at 13.6 TeV), not the old placeholder 52000 fb which was ~7200× too small. Heavy ALP default unchanged at 60000 fb. Diagnostic table mass (`test_mass`) now reads from CSV instead of hardcoded 15 GeV.
+- ~~**P7**~~ — **Light-ALP BR(B→Ka)≠1 due to `addChannel`**: `alp_meson.cmnd` used `addChannel` which *adds* ALP channels on top of SM decays, giving effective BR ≈ 0.72 instead of 1.0. Fixed by using `oneChannel` (wipes SM) + `addChannel` per B species. Now BR(B±/B⁰ → K(*)a) = 1.0 exactly. **Requires re-generation of light-ALP samples.**
+- ~~**P8**~~ — **0-LLP event bias in normalization**: `decayProbPerEvent_2body.py` averaged `P(≥1 decay)` only over events present in CSV (i.e., events with ALPs). Events where both b-hadrons go to Bs/Λb produce no ALP and are missing from CSV (~18% of events). This inflated sensitivity by ~23%. Fixed: `main144.cc` now writes `_meta.json` sidecar with `n_generated`; `parallel_produce.sh` aggregates metadata; analysis reads it and averages over all generated events. Accepts `--n-events` CLI fallback.
+- ~~**P9**~~ — **Inconsistent acceptance model**: `signal_surface_hitmap_v2.py` used `E_CUT` (energy cut) while `decayProbPerEvent_2body.py` used `P_CUT` (momentum cut with `E_min = sqrt(p²+m²)`). Hitmap also lacked `SEP_MAX`. Harmonized hitmap to use `P_CUT` with same formula. Hitmap intentionally omits `SEP_MAX` (not needed for relative spatial weighting).
+- ~~**P10**~~ — **"e⁺e⁻" label on μ⁺μ⁻ decay**: surface hitmap title said "where e⁺e⁻ hit wall" but generator decay is a→μ⁺μ⁻. Fixed. Also fixed "electron" references in `decayProbPerEvent_2body.py` docstrings.
 
 ## 4. ROOT audit (2026-02-25)
 
