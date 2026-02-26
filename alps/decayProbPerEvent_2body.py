@@ -398,19 +398,27 @@ if __name__ == "__main__":
     sample_csv = args.csv_file
     output_tag = os.path.basename(sample_csv).replace('.csv', '')
 
-    # Resolve n_generated: CLI > meta.json > fallback to CSV-only events
+    # Resolve n_generated and llp_pdg_id: CLI > meta.json > CSV fallback
     n_generated = args.n_events
-    if n_generated is None:
-        meta_path = sample_csv.replace('.csv', '_meta.json')
-        if os.path.isfile(meta_path):
-            with open(meta_path) as f:
-                meta = json.load(f)
+    llp_pdg_id = None
+    meta_path = sample_csv.replace('.csv', '_meta.json')
+    if os.path.isfile(meta_path):
+        with open(meta_path) as f:
+            meta = json.load(f)
+        if n_generated is None:
             n_generated = meta['n_generated']
-            print(f"Read n_generated={n_generated} from {meta_path}")
-        else:
-            print(f"WARNING: no _meta.json found ({meta_path}).")
-            print("         Using CSV event count (0-LLP events missing!).")
-            print("         Pass --n-events or re-run production to fix.")
+        llp_pdg_id = meta.get('llp_pdg_id')
+        print(f"Read n_generated={n_generated}, llp_pdg_id={llp_pdg_id} from {meta_path}")
+    else:
+        print(f"WARNING: no _meta.json found ({meta_path}).")
+        print("         Using CSV event count (0-LLP events missing!).")
+        print("         Pass --n-events or re-run production to fix.")
+    # Fallback: infer PDG ID from CSV data if meta not available
+    if llp_pdg_id is None:
+        _tmp = pd.read_csv(sample_csv, nrows=1)
+        _tmp.columns = _tmp.columns.str.strip()
+        llp_pdg_id = int(abs(_tmp['id'].iloc[0]))
+        print(f"Inferred llp_pdg_id={llp_pdg_id} from CSV")
     separation_plot_name = f"separation_histogram_{output_tag}.png"
     exclusion_plot_name = f"exclusion_2body_{output_tag}.png"
     origin = [0, 0, 0]
@@ -607,27 +615,53 @@ if __name__ == "__main__":
                color='blue', linewidth=2, linestyle='--', alpha=0.5,
                label="PX56 (no cuts)")
     ax4.set_xlabel(r'$c\tau$ (m)')
-    ax4.set_ylabel(r'BR$(B \to K^{(*)} a)_{\min}$')
     ax4.grid(True, which="both", ls="-", alpha=0.2)
     
-    # WARNING: these external CSVs are dark-Higgs (H(125)->SS) exclusion contours
-    # at m_S = 1 and 15 GeV.  They are a valid comparison for the heavy-ALP
-    # (h->aa) sample only.  For light-ALP (B->K(*)a) samples they are the
-    # wrong BSM model and must be replaced — see code_review.md P5.
-    ext_curves = [
-        ("MATHUSLA", "external/MATHUSLA.csv", "green", "-"),
-        ("CODEX-b", "external/CODEX.csv", "cyan", "-"),
-        ("ANUBIS", "external/ANUBIS.csv", "purple", "-"),
-        ("ANUBIS Opt", "external/ANUBISOpt.csv", "purple", "--"),
-        ("ANUBIS Cons", "external/ANUBISUpdateCons.csv", "magenta", "--"),
-    ]
-    for label, path, color, ls in ext_curves:
+    # External comparison curves — model depends on production channel.
+    # PDG 9000001 = light ALP (B→K(*)a): use CODEX B→KS curves.
+    # PDG 6000113 = heavy ALP (h→aa):    use dark-Higgs H(125)→SS curves
+    #                                     (valid comparison, same production).
+    LIGHT_ALP_PDG = 9000001
+    # BKS curves available at m = 0.5, 1.0, 2.0, 3.0 GeV
+    _bks_masses = {0.5: "external/BKS/CODEX_BKS_m05.csv",
+                   1.0: "external/BKS/CODEX_BKS_m1.csv",
+                   2.0: "external/BKS/CODEX_BKS_m2.csv",
+                   3.0: "external/BKS/CODEX_BKS_m3.csv"}
+
+    if llp_pdg_id == LIGHT_ALP_PDG:
+        # Pick the nearest available mass
+        alp_mass = geo_cache['mass'][0]
+        nearest_m = min(_bks_masses, key=lambda m: abs(m - alp_mass))
+        bks_path = _bks_masses[nearest_m]
+        print(f"  Light ALP (PDG {LIGHT_ALP_PDG}): overlaying CODEX B→KS "
+              f"curve at m={nearest_m} GeV (ALP mass={alp_mass:.2f} GeV)")
         try:
-            data = np.loadtxt(path, delimiter=",")
+            data = np.loadtxt(bks_path, delimiter=",")
             ax4.loglog(data[:, 0], data[:, 1],
-                       color=color, linewidth=2, linestyle=ls, label=label)
+                       color="cyan", linewidth=2, linestyle="-",
+                       label=f"CODEX-b B→KS (m={nearest_m} GeV)")
         except (FileNotFoundError, OSError):
-            print(f"  Note: external curve '{path}' not found, skipping.")
+            print(f"  Note: BKS curve '{bks_path}' not found, skipping.")
+        ax4.set_ylabel(r'BR$(B \to K^{(*)} a)_{\min}$')
+    else:
+        # Heavy ALP: dark-Higgs curves (H(125)→SS, m_S ~ 1 and 15 GeV).
+        # TODO P5: confirm per-file mass and only overlay mass-matched subset.
+        ext_curves = [
+            ("MATHUSLA",    "external/MATHUSLA.csv",          "green",   "-"),
+            ("CODEX-b",     "external/CODEX.csv",             "cyan",    "-"),
+            ("ANUBIS",      "external/ANUBIS.csv",            "purple",  "-"),
+            ("ANUBIS Opt",  "external/ANUBISOpt.csv",         "purple",  "--"),
+            ("ANUBIS Cons", "external/ANUBISUpdateCons.csv",  "magenta", "--"),
+        ]
+        for label, path, color, ls in ext_curves:
+            try:
+                data = np.loadtxt(path, delimiter=",")
+                ax4.loglog(data[:, 0], data[:, 1],
+                           color=color, linewidth=2, linestyle=ls, label=label)
+            except (FileNotFoundError, OSError):
+                print(f"  Note: external curve '{path}' not found, skipping.")
+        ax4.set_ylabel(r'BR$(h \to aa)_{\min}$')
+
     ax4.legend(fontsize=8, loc='upper right')
     
     plt.tight_layout()
