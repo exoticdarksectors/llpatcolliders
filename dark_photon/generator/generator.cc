@@ -181,7 +181,7 @@ int main(int argc, char* argv[]) {
   pythia.settings.addWord("Main:rivetRunName", "");
   pythia.settings.addWVec("Main:rivetAnalyses", {});
   pythia.settings.addWVec("Main:rivetPreload", {});
-  pythia.settings.addMode("LLP:pdgId", 6000113, true, false, 0, 0);
+  pythia.settings.addMode("LLP:pdgId", 6000115, true, false, 0, 0);
 
   // Read the command files.
   for (int iCmnd = 0; iCmnd < (int)cmnds.size(); ++iCmnd)

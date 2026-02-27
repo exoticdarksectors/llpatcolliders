@@ -955,8 +955,10 @@ def run_analysis(csv_file, lifetime_seconds=None, outdir="output"):
                  fontsize=13, fontweight='bold', y=1.01)
 
     import os
+    image_dir = os.path.join(outdir, "images")
+    os.makedirs(image_dir, exist_ok=True)
     basename = os.path.basename(csv_file).replace('.csv', '') + '_surface_hitmap_v2.png'
-    outname = os.path.join(outdir, basename)
+    outname = os.path.join(image_dir, basename)
     plt.savefig(outname, dpi=150, bbox_inches='tight', facecolor='white')
     print(f"\nSaved: {outname}")
     plt.close('all')
@@ -1002,7 +1004,7 @@ if __name__ == "__main__":
     parser.add_argument("csv_file", nargs="?", default="LLP.csv")
     parser.add_argument("lifetime", nargs="?", type=float, default=None)
     parser.add_argument("--outdir", default="output",
-                        help="output directory for plots (default: output)")
+                        help="output root directory (writes images to <outdir>/images)")
     args = parser.parse_args()
     os.makedirs(args.outdir, exist_ok=True)
     run_analysis(args.csv_file, lifetime_seconds=args.lifetime, outdir=args.outdir)
