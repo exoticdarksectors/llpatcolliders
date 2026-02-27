@@ -1,5 +1,6 @@
 # ---- Pythia8 build artifacts -------------------------------------------
 alps/generator/generator
+dark_photon/generator/generator
 pythiaStuff/main144
 pythiaStuff/main144Dct.h
 pythiaStuff/main144Dct.so

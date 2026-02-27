@@ -1,0 +1,60 @@
+! Command file: heavy dark photon production via exotic Higgs decay  h -> A' A'
+! A' = dark photon (massive vector boson, spin-1, neutral, uncoloured)
+! Kinetic mixing portal: epsilon coupling to SM photon.
+! Regime: few GeV to ~60 GeV  (Higgs portal coupling)
+! To scan A' mass: change 6000115:m0 below.
+! To scan lifetime: change 6000115:tau0 (in mm).
+! To change decay mode: comment/uncomment the oneChannel line.
+
+! ---- 1) Beam & collision -----------------------------------------------
+Beams:idA = 2212                   ! proton
+Beams:idB = 2212                   ! proton
+Beams:eCM = 13600.                  ! LHC Run 3 CM energy (GeV)
+
+! ---- 2) SM Higgs production (all inclusive channels) -------------------
+HiggsSM:all = on
+25:onMode = off                    ! switch off all SM Higgs decays ...
+25:m0 = 125                        ! ... and replace with h -> A' A' below
+25:mMin = 125
+25:mWidth = 0.004                  ! SM-like narrow width
+
+! Add exotic decay  h -> A' A'  (BR set to 1; rescale yield in analysis)
+25:addChannel = 1 1.0 100 6000115 6000115
+25:onIfAny    = 6000115            ! keep event only if an A' is present
+
+! ---- 3) Dark photon particle definition --------------------------------
+! Self-conjugate massive vector: "Aprime" for both particle and anti-particle.
+! spinType=3 (spin-1 vector), chargeType=0 (neutral), colType=0 (no colour).
+6000115:new       = Aprime Aprime 3 0 0
+6000115:m0        = 1              ! A' mass in GeV  [scan: 0.2 -- 60 GeV]
+6000115:tau0      = 1e4            ! proper decay length c*tau_0  [mm]
+                                   ! (controls LLP displacement; scan this)
+6000115:isResonance = off           ! off = decay after event generation (LLP treatment)
+6000115:mayDecay  = on
+
+! Override generator default LLP PDG ID (hardcoded as 6000113 in generator.cc)
+LLP:pdgId = 6000115
+
+! ---- A' decay channel --------------------------------------------------
+! Default: A' -> mu+ mu-  (compatible with 2-body analysis)
+6000115:oneChannel = 1 1.0 0 13 -13
+
+! Alternative decay modes (comment in one, comment out above):
+! Photon pair (below 2*m_mu threshold or photon-coupled):
+!6000115:oneChannel = 1 1.0 0 22 22    ! A' -> gamma gamma
+
+! ---- 4) Run settings ---------------------------------------------------
+Init:showChangedSettings    = on
+Init:showAllSettings        = off
+Init:showChangedParticleData = on
+Init:showAllParticleData    = off
+Next:numberCount    = 1000
+Next:numberShowLHA  = 1
+Next:numberShowInfo = 1
+Next:numberShowProcess = 1
+Next:numberShowEvent   = 1
+Stat:showPartonLevel = on
+
+! ---- 5) Output ---------------------------------------------------------
+Main:numberOfEvents = 10000
+Main:writeLog = on

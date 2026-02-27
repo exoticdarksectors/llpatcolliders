@@ -1,55 +1,51 @@
 # How-to: full run sequence
 
-## One-time: build Pythia8 and main144
+## One-time: build Pythia8
 
 ```fish
-# Build Pythia8 (adjust path to your local Pythia8 source):
-cd /path/to/pythia8315
+cd /Users/fredi/sandbox-offline/pythia8315
 ./configure                          # add --with-root=... if you want ROOT support
 make -j(sysctl -n hw.logicalcpu)
-
-# Build main144 (auto-finds Pythia8 via $PYTHIA8_DIR or sibling ../pythia8315):
-cd /path/to/llpatcolliders/pythiaStuff
-set -x PYTHIA8_DIR /path/to/pythia8315 # only needed if not a sibling dir
-bash make.sh
 ```
 
-## Production (from pythiaStuff/)
+## One-time: build generator binary
 
 ```fish
-# Optional reset BEFORE starting a fresh production (removes alps/output/*.csv + *_meta.json):
-# bash clean_production.sh --all
-
-bash parallel_produce.sh higgsLL.cmnd  10000 alp_heavy_m15
-bash parallel_produce.sh alp_meson.cmnd 10000 alp_light_m1
-# Each run produces:
-#   alps/output/<name>.csv        — LLP kinematics
-#   alps/output/<name>_meta.json  — n_generated, n_with_llp (needed for correct normalization)
+set -x PYTHIA8_DIR /Users/fredi/sandbox-offline/pythia8315
+bash /Users/fredi/sandbox-offline/llpatcolliders_MATT/llpatcolliders/dark_photon/generator/build.sh
 ```
 
-## Analysis (from alps/)
+---
+
+## Dark photon production & analysis
+
+### Production
 
 ```fish
-cd alps
-conda activate llpatcolliders
+set DP /Users/fredi/sandbox-offline/llpatcolliders_MATT/llpatcolliders/dark_photon
 
-# Always pass --xsec explicitly (do not rely on decayProbPerEvent_2body.py default).
-# HL-LHC baseline: sqrt(s)=14 TeV, L=3000 fb^-1.
-# Heavy ALP (h→aa): xsec = sigma(pp→h) ≈ 60 pb = 60000 fb
-set XSEC_HEAVY_FB 60000
-# Light ALP (B→Ka): xsec = sigma(pp→bb̄, inclusive) from Pythia ≈ 0.37 mb = 3.73e8 fb.
-# The generator uses BR(B→Ka)=1; the exclusion curve gives BR_min directly.
-set XSEC_LIGHT_FB 373000000
+# Optional reset:
+# bash $DP/generator/clean.sh --all
 
-# The analysis auto-reads <csv>_meta.json for the total number of generated events.
-# Without it, 0-LLP events are missing from the average and sensitivity is overstated.
-# If no meta file exists, pass --n-events <total_generated> manually.
-python decayProbPerEvent_2body.py output/alp_heavy_m15.csv --xsec $XSEC_HEAVY_FB --lumi 3000
-python decayProbPerEvent_2body.py output/alp_light_m1.csv --xsec $XSEC_LIGHT_FB --lumi 3000
+# h→A'A', three mass points (σ(pp→h) ≈ 60 pb = 60000 fb)
+bash $DP/generator/produce.sh $DP/generator/heavy_dp_m05.cmnd 10000 dp_heavy_m05 4 1500
+bash $DP/generator/produce.sh $DP/generator/heavy_dp_m1.cmnd  10000 dp_heavy_m1  4 1500
+bash $DP/generator/produce.sh $DP/generator/heavy_dp_m15.cmnd 10000 dp_heavy_m15 4 1500
+```
 
-python signal_surface_hitmap_v2.py output/alp_heavy_m15.csv
-python signal_surface_hitmap_v2.py output/alp_light_m1.csv
+### Analysis
 
-# geometry validation (run once after any change to gargoyle_geometry.py):
-python visualize_tunnel.py
+```fish
+set DP /Users/fredi/sandbox-offline/llpatcolliders_MATT/llpatcolliders/dark_photon
+cd $DP
+
+for tag in dp_heavy_m05 dp_heavy_m1 dp_heavy_m15
+    conda run -n llpatcolliders python decayProbPerEvent_2body.py \
+        output/$tag.csv --xsec 60000 --lumi 3000 --outdir output/
+    conda run -n llpatcolliders python signal_surface_hitmap_v2.py \
+        output/$tag.csv --outdir output/
+end
+
+# Geometry validation (after any change to gargoyle_geometry.py):
+conda run -n llpatcolliders python visualize_tunnel.py
 ```
