@@ -4,7 +4,7 @@
 ! Regime: few GeV to ~60 GeV  (Higgs portal coupling)
 ! To scan A' mass: change 6000115:m0 below.
 ! To scan lifetime: change 6000115:tau0 (in mm).
-! To change decay mode: comment/uncomment the oneChannel line.
+! Decay channels: kinetic mixing BRs from R-ratio (mass-dependent).
 
 ! ---- 1) Beam & collision -----------------------------------------------
 Beams:idA = 2212                   ! proton
@@ -35,13 +35,14 @@ HiggsSM:all = on
 ! Override generator default LLP PDG ID (hardcoded as 6000113 in generator.cc)
 LLP:pdgId = 6000115
 
-! ---- A' decay channel --------------------------------------------------
-! Default: A' -> mu+ mu-  (compatible with 2-body analysis)
-6000115:oneChannel = 1 1.0 0 13 -13
-
-! Alternative decay modes (comment in one, comment out above):
-! Photon pair (below 2*m_mu threshold or photon-coupled):
-!6000115:oneChannel = 1 1.0 0 22 22    ! A' -> gamma gamma
+! ---- A' decay channels (kinetic mixing, m=0.5 GeV) ----------------------
+! BRs from R-ratio: at 0.5 GeV, leptonic ~90%, hadronic ~10%.
+! Hadronic channels use meMode=101 (isotropic qq̄, Pythia8 hadronizes).
+6000115:addChannel = 1 0.45  0  11 -11    ! e+e-
+6000115:addChannel = 1 0.45  0  13 -13    ! mu+mu-
+6000115:addChannel = 1 0.067 101  2 -2    ! uu (Nc*eu^2 = 4/3 of hadronic)
+6000115:addChannel = 1 0.017 101  1 -1    ! dd (Nc*ed^2 = 1/3 of hadronic)
+6000115:addChannel = 1 0.017 101  3 -3    ! ss (Nc*es^2 = 1/3 of hadronic)
 
 ! ---- 4) Run settings ---------------------------------------------------
 Init:showChangedSettings    = on

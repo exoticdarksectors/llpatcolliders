@@ -9,7 +9,8 @@ Two production channels:
   - `generator/heavy_dp_m15.cmnd` — m_A' = 15 GeV
 - **Light A'** (0.2–5 GeV): B-meson FCNC `pp → bb̄ → B → K(*)A'` *(not yet implemented)*
 
-Decay: `A' → μ⁺μ⁻` (BR=1 for efficiency maps; rescale via `--xsec` in analysis).
+Decay: kinetic-mixing BRs from the R-ratio (mass-dependent leptonic + hadronic channels).
+Pythia8 handles full decay and hadronization. Generator writes charged daughters to `_daughters.csv`.
 
 ## Build
 
@@ -39,7 +40,8 @@ cd $DP
 
 # HL-LHC baseline: sqrt(s)=14 TeV, L=3000 fb^-1
 for tag in dp_heavy_m05 dp_heavy_m1 dp_heavy_m15
-    conda run -n llpatcolliders python decayProbPerEvent_2body.py \
+    # N-track analysis (≥2 charged tracks, matching MATHUSLA/ANUBIS/CODEX-b)
+    conda run -n llpatcolliders python decayProbPerEvent_Ntrack.py \
         output/$tag.csv --xsec 60000 --lumi 3000 --outdir output/
     conda run -n llpatcolliders python signal_surface_hitmap_v2.py \
         output/$tag.csv --outdir output/
@@ -58,7 +60,8 @@ conda run -n llpatcolliders python visualize_tunnel.py
 | Particle name   | ALP              | Aprime                  |
 | isResonance     | off              | off                     |
 | Production      | same (h→XX)      | same                    |
-| Decay/analysis  | same (μ⁺μ⁻)      | same                    |
+| Decay           | μ⁺μ⁻ (BR=1)      | R-ratio BRs (full)      |
+| Analysis        | 2-body analytical | ≥2 charged tracks (DV)  |
 
 ## External comparison curves
 

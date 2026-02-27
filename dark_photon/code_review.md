@@ -40,18 +40,14 @@
 
 - **W2** (`dark_photon/generator/build.sh`) — `-w` suppresses all compiler warnings.
 
-- **W3** (`dark_photon/generator/heavy_dp_m{05,1,15}.cmnd`, `decayProbPerEvent_2body.py`) — Current signal definition is dimuon-only by construction.
+- ~~**W3**~~ FIXED: Signal definition generalized to ≥2 charged tracks (displaced vertex), matching MATHUSLA/ANUBIS/CODEX-b.
+  - cmnd files now use R-ratio BRs (e⁺e⁻, μ⁺μ⁻, τ⁺τ⁻, qq̄ with Pythia8 hadronization) instead of forcing A'→μ⁺μ⁻.
+  - `generator.cc` writes `_daughters.csv` with all final-state charged particles from each LLP decay.
+  - `produce.sh` aggregates daughter CSVs across batches.
+  - New analysis: `decayProbPerEvent_Ntrack.py` (geometric acceptance × decay probability × ≥N tracks with p > p_cut).
+  - Old `decayProbPerEvent_2body.py` kept for backward compatibility/cross-checks.
 
-  The generator forces `A' -> mu+ mu-` with `BR=1` in all three heavy mass-point cards. The analysis also assumes 2-body muons (`M_DAUGHTER = 0.10566` GeV), so current acceptance/exclusion outputs are a muon-channel efficiency map.
-
-  For comparison to displaced-track searches (MATHUSLA/ANUBIS/CODEX-b) that accept generic visible charged decays, reinterpret yields as:
-  `N_all-visible ~= N_mu-map x BR(A'->visible) / BR(A'->mu+mu-)`.
-
-  In minimal kinetic-mixing scenarios without invisible dark-sector channels, `BR(A'->visible) ~= 1`, so the leading rescaling is approximately `1 / BR(A'->mu+mu-)` and is mass-dependent (hadronic/leptonic split set by the R-ratio).
-
-  Caveat: this is first-order only. Hadronic decays change daughter multiplicity/topology relative to the current 2-body muon acceptance model.
-
-  **Action:** for precision comparison, compute `BR(m_A')` from dedicated dark-photon BR tables/tools and/or generalize acceptance to `>=2` charged tracks.
+- **W4** — R-ratio BRs in cmnd files are approximate (hand-computed from perturbative N_c×e_q²). At low masses (0.5–1 GeV), hadronic BRs are distorted by ρ/ω/φ resonances; the perturbative approximation is crude. For precision, use tabulated e⁺e⁻→hadrons R-ratio data or a dark photon BR calculator (e.g. from [arXiv:2005.01515](https://arxiv.org/abs/2005.01515)).
 
 ### Minor
 
@@ -66,8 +62,10 @@
 
 ## Verified correct
 
-- `heavy_dp_m{05,1,15}.cmnd`: PDG 6000115, spinType=3 (vector), `isResonance=off`, `LLP:pdgId` override, clean `addChannel` syntax (no index hack), `oneChannel` decay to μ⁺μ⁻. Three mass benchmarks: 0.5, 1, 15 GeV.
-- `build.sh`: self-contained, compiles local `generator.cc`, requires `$PYTHIA8_DIR` (Pythia8 not a sibling of repo).
-- `produce.sh`, `clean.sh`: paths self-resolve to `dark_photon/output/`, `llp_pdg_id` now propagated.
-- `generator.cc`: reads `LLP:pdgId` from cmnd (overrides default 6000113), writes correct `llp_pdg_id` to per-batch `_meta.json`.
-- Analysis scripts (`decayProbPerEvent_2body.py`, `signal_surface_hitmap_v2.py`, `gargoyle_geometry.py`, `visualize_tunnel.py`): self-contained copies in `dark_photon/`; run from `dark_photon/` for external curves to resolve.
+- `heavy_dp_m{05,1,15}.cmnd`: PDG 6000115, spinType=3 (vector), `isResonance=off`, `LLP:pdgId` override, clean `addChannel` syntax, R-ratio decay BRs. Three mass benchmarks: 0.5, 1, 15 GeV.
+- `build.sh`: self-contained, compiles local `generator.cc`, requires `$PYTHIA8_DIR`.
+- `produce.sh`, `clean.sh`: paths self-resolve to `dark_photon/output/`, `llp_pdg_id` propagated, daughter CSV aggregated.
+- `generator.cc`: reads `LLP:pdgId` from cmnd, writes LLP CSV + `_daughters.csv` (charged final-state particles from each LLP decay) + `_meta.json`.
+- `decayProbPerEvent_Ntrack.py`: N-track displaced vertex analysis (≥2 charged tracks, p > 600 MeV). Reads LLP CSV + daughters CSV.
+- `decayProbPerEvent_2body.py`: legacy 2-body muon analysis (for cross-checks only).
+- `signal_surface_hitmap_v2.py`, `gargoyle_geometry.py`, `visualize_tunnel.py`: self-contained copies; run from `dark_photon/`.

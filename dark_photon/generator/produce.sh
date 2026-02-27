@@ -26,8 +26,10 @@ mkdir -p "$OUTDIR"
 CSV="${OUTDIR}/${NAME}.csv"
 TMP="${OUTDIR}/.${NAME}_part"
 
-# Initialize output CSV with header
+# Initialize output CSVs with headers
 printf 'event,id,pt,eta,phi,momentum,mass\n' > "$CSV"
+DAU="${OUTDIR}/${NAME}_daughters.csv"
+printf 'event,llp_idx,daughter_pid,pt,eta,phi,px,py,pz,energy,charge\n' > "$DAU"
 
 count=0
 round=0
@@ -69,6 +71,13 @@ while [ "$count" -lt "$TARGET" ]; do
         [ -f "$f" ] || continue
         awk -F',[[:space:]]*' -v OFS=',' -v off="$offset" \
             'NR>1{$1=$1+off; print $1,$2,$3,$4,$5,$6,$7}' "$f" >> "$CSV"
+        # Append daughter CSV with renumbered event IDs
+        df="${TMP}_${i}_daughters.csv"
+        if [ -f "$df" ]; then
+            awk -F',[[:space:]]*' -v OFS=',' -v off="$offset" \
+                'NR>1{$1=$1+off; print}' "$df" >> "$DAU"
+            rm -f "$df"
+        fi
         last_evt=$(awk -F',[[:space:]]*' 'NR>1{last=$1} END{print (NR>1 ? last : -1)+0}' "$f")
         offset=$((offset + last_evt + 1))
         # Accumulate metadata from batch sidecar

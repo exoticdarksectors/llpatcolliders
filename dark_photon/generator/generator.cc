@@ -295,6 +295,10 @@ int main(int argc, char* argv[]) {
   ofstream myfile;
   myfile.open (out + ".csv");
   myfile << "event,id,pt,eta,phi,momentum,mass\n";
+  // Daughter CSV: final-state charged particles from each LLP decay.
+  ofstream daufile;
+  daufile.open(out + "_daughters.csv");
+  daufile << "event,llp_idx,daughter_pid,pt,eta,phi,px,py,pz,energy,charge\n";
   for ( int iEvent = 0; iEvent < nEvent; ++iEvent ) {
     auto startThisEvent = std::chrono::high_resolution_clock::now();
 
@@ -327,6 +331,7 @@ int main(int argc, char* argv[]) {
 #endif
 
     // Write LLP to CSV (always active, no ROOT required).
+    // Also write final-state charged daughters to _daughters.csv.
     int nLLPthis = 0;
     for (int iPrt = 0; iPrt < pythia.event.size(); ++iPrt) {
       Particle& prt = pythia.event[iPrt];
@@ -334,6 +339,28 @@ int main(int argc, char* argv[]) {
       myfile << iEvent << "," << prt.id() << "," << prt.pT() << ","
              << prt.eta() << "," << prt.phi() << "," << prt.pAbs()
              << "," << prt.m() << "\n";
+      // Walk the full decay chain to find final-state charged particles.
+      for (int iDau = 0; iDau < pythia.event.size(); ++iDau) {
+        Particle& dau = pythia.event[iDau];
+        if (!dau.isFinal() || !dau.isCharged()) continue;
+        // Check if this final-state particle descends from the LLP.
+        // Walk mothers up to the LLP.
+        int iAnc = iDau;
+        bool fromThisLLP = false;
+        int steps = 0;
+        while (iAnc > 0 && steps < 100) {
+          if (iAnc == iPrt) { fromThisLLP = true; break; }
+          int m1 = pythia.event[iAnc].mother1();
+          if (m1 == iAnc) break;  // self-referencing mother
+          iAnc = m1;
+          ++steps;
+        }
+        if (!fromThisLLP) continue;
+        daufile << iEvent << "," << nLLPthis << "," << dau.id() << ","
+                << dau.pT() << "," << dau.eta() << "," << dau.phi() << ","
+                << dau.px() << "," << dau.py() << "," << dau.pz() << ","
+                << dau.e() << "," << dau.charge() << "\n";
+      }
       ++nLLPthis;
     }
     if (nLLPthis > 0) ++nWithLLP;
@@ -355,6 +382,7 @@ int main(int argc, char* argv[]) {
 
   // Finalize.
   myfile.close();
+  daufile.close();
 
   // Write metadata sidecar (JSON) for analysis normalisation.
   {

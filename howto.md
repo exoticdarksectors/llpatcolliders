@@ -40,7 +40,8 @@ set DP /Users/fredi/sandbox-offline/llpatcolliders_MATT/llpatcolliders/dark_phot
 cd $DP
 
 for tag in dp_heavy_m05 dp_heavy_m1 dp_heavy_m15
-    conda run -n llpatcolliders python decayProbPerEvent_2body.py \
+    # N-track analysis (≥2 charged tracks, matching MATHUSLA/ANUBIS/CODEX-b)
+    conda run -n llpatcolliders python decayProbPerEvent_Ntrack.py \
         output/$tag.csv --xsec 60000 --lumi 3000 --outdir output/
     conda run -n llpatcolliders python signal_surface_hitmap_v2.py \
         output/$tag.csv --outdir output/
