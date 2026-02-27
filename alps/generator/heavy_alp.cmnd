@@ -30,7 +30,7 @@ HiggsSM:all = on
 6000113:m0        = 15             ! ALP mass in GeV  [scan: 1 -- 60 GeV]
 6000113:tau0      = 1e4            ! proper decay length c*tau_0  [mm]
                                    ! (controls LLP displacement; scan this)
-6000113:isResonance = on
+6000113:isResonance = off           ! off = decay after event generation (LLP treatment)
 6000113:mayDecay  = on
 
 ! ---- ALP decay channel -------------------------------------------------

@@ -37,6 +37,7 @@ MAX_ROUNDS=200
 consec_empty=0
 total_gen=0
 total_with_llp=0
+llp_pdg_id=""
 
 echo "Target: $TARGET LLP rows | $NJOBS parallel jobs | $BATCH events/job/round"
 echo "Output: $CSV"
@@ -77,6 +78,9 @@ while [ "$count" -lt "$TARGET" ]; do
             nw=$(awk -F': *' '/"n_with_llp"/{gsub(/[^0-9]/,"",$2); print $2}' "$mf")
             total_gen=$((total_gen + ${ng:-0}))
             total_with_llp=$((total_with_llp + ${nw:-0}))
+            if [ -z "$llp_pdg_id" ]; then
+                llp_pdg_id=$(awk -F': *' '/"llp_pdg_id"/{gsub(/[^0-9]/,"",$2); print $2}' "$mf")
+            fi
             rm -f "$mf"
         fi
         rm -f "$f" "${TMP}_${i}.log"
@@ -101,7 +105,8 @@ cat > "$META" <<EOF
 {
   "n_generated": $total_gen,
   "n_with_llp": $total_with_llp,
-  "n_total_llp": $count
+  "n_total_llp": $count,
+  "llp_pdg_id": ${llp_pdg_id:-null}
 }
 EOF
 

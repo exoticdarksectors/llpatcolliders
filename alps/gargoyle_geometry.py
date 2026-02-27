@@ -211,8 +211,13 @@ def cache_geometry(csv_file, mesh, origin):
     print(f"Caching fiducial volume geometry for {n} particles...")
     for idx, row in tqdm(df.iterrows(), total=n, desc="Ray-casting"):
         direction = eta_phi_to_direction(row['eta'], row['phi'])
-        locations, _, _ = mesh.ray.intersects_location(
-            ray_origins=[origin], ray_directions=[direction])
+        if not np.all(np.isfinite(direction)):
+            continue
+        try:
+            locations, _, _ = mesh.ray.intersects_location(
+                ray_origins=[origin], ray_directions=[direction])
+        except Exception:
+            continue
         if len(locations) >= 2:
             hits[idx] = True
             distances = sorted(
