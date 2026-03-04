@@ -17,7 +17,7 @@ HiggsSM:all = on
 25:76:meMode = 100
 25:onIfAny = 6000113
 25:mMin = 125
-25:mWidth = 10
+25:mWidth = 0.004                  ! SM-like narrow width
 
 ! ---- 3) LLP definition -------------------------------------------------
 6000113:new = LL_b LLbar_b 1 0 0

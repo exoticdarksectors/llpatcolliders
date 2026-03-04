@@ -1,5 +1,5 @@
 # Build artifacts
-generator/generator
+**/generator/generator
 *.o
 *.d
 *.so
@@ -20,6 +20,9 @@ __pycache__/
 *.swp
 *.swo
 *~
+
+# Claude Code
+CLAUDE.md
 
 # Logs
 *.log
