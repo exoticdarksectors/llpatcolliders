@@ -8,7 +8,7 @@
 ! ---- 1) Beam & collision -----------------------------------------------
 Beams:idA = 2212                   ! proton
 Beams:idB = 2212                   ! proton
-Beams:eCM = 13600.                  ! LHC Run 3 CM energy (GeV)
+Beams:eCM = 14000.                   ! HL-LHC CM energy (GeV)
 
 ! ---- 2) SM Higgs production (all inclusive channels) -------------------
 HiggsSM:all = on
@@ -47,7 +47,10 @@ HiggsSM:all = on
 ! Tau-coupled ALP (m_a > 2 m_tau ~ 3.5 GeV):
 !6000113:oneChannel = 1 1.0 0 15 -15   ! a -> tau+ tau-
 
-! ---- 4) Run settings ---------------------------------------------------
+! ---- 4) Tell generator which particle ID to record in LLP.csv ----------
+LLP:pdgId = 6000113
+
+! ---- 5) Run settings ---------------------------------------------------
 Init:showChangedSettings    = on
 Init:showAllSettings        = off
 Init:showChangedParticleData = on
@@ -59,6 +62,6 @@ Next:numberShowProcess = 1
 Next:numberShowEvent   = 1
 Stat:showPartonLevel = on
 
-! ---- 5) Output ---------------------------------------------------------
+! ---- 6) Output ---------------------------------------------------------
 Main:numberOfEvents = 10000
 Main:writeLog = on
