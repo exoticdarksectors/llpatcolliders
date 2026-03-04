@@ -19,7 +19,7 @@
 ! ---- 1) Beam & collision -----------------------------------------------
 Beams:idA = 2212
 Beams:idB = 2212
-Beams:eCM = 13600.
+Beams:eCM = 14000.                   ! HL-LHC CM energy (GeV)
 
 ! ---- 2) Hard b-quark pair production -----------------------------------
 HardQCD:gg2bbbar   = on
@@ -87,5 +87,5 @@ Next:numberShowEvent   = 1
 Stat:showPartonLevel = on
 
 ! ---- 7) Output ---------------------------------------------------------
-Main:numberOfEvents = 100000       ! overridden by parallel_produce.sh batch size
+Main:numberOfEvents = 100000       ! overridden by produce.sh batch size
 Main:writeLog = on

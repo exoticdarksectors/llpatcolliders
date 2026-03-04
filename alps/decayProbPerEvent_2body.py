@@ -1,3 +1,9 @@
+import os
+import sys
+import json
+import argparse
+import glob
+
 import numpy as np
 import pandas as pd
 import matplotlib
@@ -11,12 +17,135 @@ from gargoyle_geometry import (
     mesh_fiducial,
 )
 
+# Resolve paths relative to this script so external curves are found
+# regardless of the working directory the user runs from.
+_SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+
 M_DAUGHTER = 0.10566  # GeV/c² (muon mass, matching generator decay a → μ⁺μ⁻)
 
 # Analysis cuts
 P_CUT   = 0.600    # GeV/c — minimum daughter momentum
 SEP_MIN = 0.001    # m — minimum separation at detector (1 mm)
 SEP_MAX = 1.0     # m — maximum separation at detector
+
+# Default lifetime scan range (extended for full U-curve)
+DEFAULT_LIFETIME_MIN_NS = 10**-2
+DEFAULT_LIFETIME_MAX_NS = 10**5.5
+DEFAULT_LIFETIME_POINTS = 80
+
+
+def infer_sample_mass(mass_values):
+    """Infer the LLP benchmark mass from the sample payload."""
+    masses = np.asarray(mass_values, dtype=float)
+    masses = masses[np.isfinite(masses)]
+    if masses.size == 0:
+        return None
+    return float(np.median(masses))
+
+
+def candidate_mass_tags(mass):
+    """Return filename tags commonly used for mass-stamped external curves."""
+    if mass is None or not np.isfinite(mass):
+        return []
+
+    mass = float(mass)
+    tags = []
+
+    if mass < 1.0:
+        hundredths = int(round(mass * 10))
+        tags.append(f"m0{hundredths}")
+
+    rounded_int = int(round(mass))
+    if np.isclose(mass, rounded_int):
+        tags.extend([f"m{rounded_int}", f"m{rounded_int}p0", f"m{rounded_int}.0"])
+    else:
+        mass_text = f"{mass:g}"
+        tags.extend([f"m{mass_text.replace('.', 'p')}", f"m{mass_text}"])
+
+    deduped = []
+    for tag in tags:
+        if tag not in deduped:
+            deduped.append(tag)
+    return deduped
+
+
+def overlay_mass_matched_external_curves(ax, sample_mass, llp_pdg_id):
+    """
+    Overlay only external curves that are explicitly mass-tagged.
+
+    - Heavy ALP (PDG 6000113, h->aa): external/<STEM>_m<tag>.csv (h->SS curves)
+    - Light ALP (PDG 9000001, B->K(*)a): external/BKS/CODEX_BKS_m<tag>.csv
+    """
+    LIGHT_ALP_PDG = 9000001
+
+    if sample_mass is None:
+        print("  Note: could not infer LLP mass; skipping external curves.")
+        return 0
+
+    tags = candidate_mass_tags(sample_mass)
+    loaded = 0
+
+    if llp_pdg_id == LIGHT_ALP_PDG:
+        # Light ALP: use BKS curves only
+        for tag in tags:
+            path = os.path.join(_SCRIPT_DIR, "external", "BKS",
+                                f"CODEX_BKS_{tag}.csv")
+            if os.path.isfile(path):
+                data = np.loadtxt(path, delimiter=",")
+                ax.loglog(data[:, 0], data[:, 1],
+                          color="cyan", linewidth=2, linestyle="-",
+                          label=f"CODEX-b B→KS (m={sample_mass:.1f} GeV)")
+                loaded += 1
+                break
+        ax.set_ylabel(r'BR$(B \to K^{(*)} a)_{\min}$')
+    else:
+        # Heavy ALP: h->SS dark-Higgs curves (mass-matched)
+        stems = [
+            ("MATHUSLA", "MATHUSLA", "green", "-"),
+            ("CODEX-b", "CODEX", "cyan", "-"),
+            ("ANUBIS", "ANUBIS", "purple", "-"),
+            ("ANUBIS Opt", "ANUBISOpt", "purple", "--"),
+            ("ANUBIS Cons", "ANUBISUpdateCons", "magenta", "--"),
+        ]
+
+        # Draw excluded region (grey fill) if available
+        for tag in tags:
+            excl_path = os.path.join(_SCRIPT_DIR, "external",
+                                     f"excluded_{tag}.csv")
+            if os.path.isfile(excl_path):
+                excl = np.loadtxt(excl_path, delimiter=",")
+                ax.fill_between(excl[:, 0], excl[:, 1], 1.0,
+                                color='gray', alpha=0.35, zorder=0)
+                ax.plot(excl[:, 0], excl[:, 1], color='gray',
+                        linewidth=1.2, zorder=0)
+                ax.text(np.sqrt(excl[:, 0].min() * excl[:, 0].max()), 0.4,
+                        'excluded', color='gray', fontsize=14, alpha=0.9,
+                        ha='center')
+                break
+
+        for label, stem, color, ls in stems:
+            for tag in tags:
+                path = os.path.join(_SCRIPT_DIR, "external",
+                                    f"{stem}_{tag}.csv")
+                if not os.path.isfile(path):
+                    continue
+                data = np.loadtxt(path, delimiter=",")
+                ax.loglog(data[:, 0], data[:, 1],
+                          color=color, linewidth=2, linestyle=ls, label=label)
+                loaded += 1
+                break
+
+        ax.set_ylabel(r'BR$(h \to aa)_{\min}$')
+
+    if loaded == 0:
+        available = sorted(os.path.basename(p) for p in glob.glob(
+            os.path.join(_SCRIPT_DIR, "external", "*.csv")))
+        print(f"  Note: no mass-matched external curves found for "
+              f"m={sample_mass:.3g} GeV.")
+        if available:
+            print(f"  Available external files: {', '.join(available)}")
+
+    return loaded
 
 # ============================================================
 # Two-body decay acceptance (analytical)
@@ -220,7 +349,7 @@ def process_with_acceptance(csv_file_or_df, lifetime_seconds, geo_cache,
 
 def analyze_decay_vs_lifetime(csv_file, geo_cache, lifetime_range,
                                p_cut=P_CUT, sep_min=SEP_MIN, sep_max=SEP_MAX,
-                               xsec_fb=60E3, lumi_fb=3000,
+                               xsec_fb=54700, lumi_fb=3000,
                                n_generated=None):
     df_base = pd.read_csv(csv_file)
     df_base.columns = df_base.columns.str.strip()
@@ -368,16 +497,12 @@ def sample_separations(geo_cache, lifetime_seconds, n_samples_per_particle=100,
 # Main
 # ============================================================
 if __name__ == "__main__":
-    import argparse
-    import os
-    import sys
-    import json
     parser = argparse.ArgumentParser()
     parser.add_argument("csv_file", nargs="?", default="LLP.csv")
-    parser.add_argument("--xsec", type=float, default=60E3,
+    parser.add_argument("--xsec", type=float, default=54700,
                         help="production cross-section in fb "
-                             "(heavy ALP: ~60e3 for pp→h; "
-                             "light ALP: ~373e6 for inclusive pp→bb̄)")
+                             "(heavy ALP: 54700 for σ(gg→h) at 14 TeV; "
+                             "light ALP: 373e6 for inclusive pp→bb̄)")
     parser.add_argument("--lumi", type=float, default=3000,
                         help="integrated luminosity in fb⁻¹ (default: 3000)")
     parser.add_argument("--outdir", default="output",
@@ -385,16 +510,33 @@ if __name__ == "__main__":
     parser.add_argument("--n-events", type=int, default=None,
                         help="total generated events (including 0-LLP events). "
                              "Auto-read from <csv>_meta.json if available.")
+    parser.add_argument("--lifetime-min-ns", type=float,
+                        default=DEFAULT_LIFETIME_MIN_NS,
+                        help="minimum lifetime in ns for scan "
+                             f"(default: {DEFAULT_LIFETIME_MIN_NS:.0e})")
+    parser.add_argument("--lifetime-max-ns", type=float,
+                        default=DEFAULT_LIFETIME_MAX_NS,
+                        help="maximum lifetime in ns for scan "
+                             f"(default: {DEFAULT_LIFETIME_MAX_NS:.1e})")
+    parser.add_argument("--lifetime-points", type=int,
+                        default=DEFAULT_LIFETIME_POINTS,
+                        help="number of lifetime scan points "
+                             f"(default: {DEFAULT_LIFETIME_POINTS})")
     args = parser.parse_args()
     xsec_arg_given = any(
         tok == "--xsec" or tok.startswith("--xsec=")
         for tok in sys.argv[1:]
     )
     if not xsec_arg_given:
-        print("WARNING: --xsec not provided; using default 60e3 fb (pp→h).")
+        print("WARNING: --xsec not provided; using default 54700 fb (σ(gg→h) at 14 TeV).")
         print("         For light ALP (pp→bb̄): use --xsec 373e6.")
         print("         Always pass benchmark-specific --xsec explicitly.")
     os.makedirs(args.outdir, exist_ok=True)
+    data_dir = os.path.join(args.outdir, "data")
+    image_dir = os.path.join(args.outdir, "images")
+    os.makedirs(data_dir, exist_ok=True)
+    os.makedirs(image_dir, exist_ok=True)
+
     sample_csv = args.csv_file
     output_tag = os.path.basename(sample_csv).replace('.csv', '')
 
@@ -546,7 +688,7 @@ if __name__ == "__main__":
         plt.colorbar(h[3], ax=ax3, label='Weighted counts')
         
         plt.tight_layout()
-        plt.savefig(os.path.join(args.outdir, separation_plot_name), dpi=150)
+        plt.savefig(os.path.join(image_dir, separation_plot_name), dpi=150)
         
         # Print summary
         in_window = (seps >= SEP_MIN) & (seps <= SEP_MAX)
@@ -564,7 +706,9 @@ if __name__ == "__main__":
     print(f"  σ = {args.xsec:.3g} fb,  L = {args.lumi:.0f} fb⁻¹")
     print(f"  n_generated = {n_generated if n_generated is not None else '(unknown — using CSV events only)'}")
 
-    lifetimes = np.logspace(-9.5, -4.5, 20)
+    lifetimes = np.logspace(np.log10(args.lifetime_min_ns * 1e-9),
+                            np.log10(args.lifetime_max_ns * 1e-9),
+                            args.lifetime_points)
     scan = analyze_decay_vs_lifetime(sample_csv, geo_cache, lifetimes,
                                      xsec_fb=args.xsec, lumi_fb=args.lumi,
                                      n_generated=n_generated)
@@ -617,60 +761,21 @@ if __name__ == "__main__":
     ax4.set_xlabel(r'$c\tau$ (m)')
     ax4.grid(True, which="both", ls="-", alpha=0.2)
     
-    # External comparison curves — model depends on production channel.
-    # PDG 9000001 = light ALP (B→K(*)a): use CODEX B→KS curves.
-    # PDG 6000113 = heavy ALP (h→aa):    use dark-Higgs H(125)→SS curves
-    #                                     (valid comparison, same production).
-    LIGHT_ALP_PDG = 9000001
-    # BKS curves available at m = 0.5, 1.0, 2.0, 3.0 GeV
-    _bks_masses = {0.5: "external/BKS/CODEX_BKS_m05.csv",
-                   1.0: "external/BKS/CODEX_BKS_m1.csv",
-                   2.0: "external/BKS/CODEX_BKS_m2.csv",
-                   3.0: "external/BKS/CODEX_BKS_m3.csv"}
-
-    if llp_pdg_id == LIGHT_ALP_PDG:
-        # Pick the nearest available mass
-        alp_mass = geo_cache['mass'][0]
-        nearest_m = min(_bks_masses, key=lambda m: abs(m - alp_mass))
-        bks_path = _bks_masses[nearest_m]
-        print(f"  Light ALP (PDG {LIGHT_ALP_PDG}): overlaying CODEX B→KS "
-              f"curve at m={nearest_m} GeV (ALP mass={alp_mass:.2f} GeV)")
-        try:
-            data = np.loadtxt(bks_path, delimiter=",")
-            ax4.loglog(data[:, 0], data[:, 1],
-                       color="cyan", linewidth=2, linestyle="-",
-                       label=f"CODEX-b B→KS (m={nearest_m} GeV)")
-        except (FileNotFoundError, OSError):
-            print(f"  Note: BKS curve '{bks_path}' not found, skipping.")
-        ax4.set_ylabel(r'BR$(B \to K^{(*)} a)_{\min}$')
-    else:
-        # Heavy ALP: dark-Higgs curves (H(125)→SS, m_S ~ 1 and 15 GeV).
-        # TODO P5: confirm per-file mass and only overlay mass-matched subset.
-        ext_curves = [
-            ("MATHUSLA",    "external/MATHUSLA.csv",          "green",   "-"),
-            ("CODEX-b",     "external/CODEX.csv",             "cyan",    "-"),
-            ("ANUBIS",      "external/ANUBIS.csv",            "purple",  "-"),
-            ("ANUBIS Opt",  "external/ANUBISOpt.csv",         "purple",  "--"),
-            ("ANUBIS Cons", "external/ANUBISUpdateCons.csv",  "magenta", "--"),
-        ]
-        for label, path, color, ls in ext_curves:
-            try:
-                data = np.loadtxt(path, delimiter=",")
-                ax4.loglog(data[:, 0], data[:, 1],
-                           color=color, linewidth=2, linestyle=ls, label=label)
-            except (FileNotFoundError, OSError):
-                print(f"  Note: external curve '{path}' not found, skipping.")
-        ax4.set_ylabel(r'BR$(h \to aa)_{\min}$')
+    # External comparison curves — mass-matched overlay
+    sample_mass = infer_sample_mass(geo_cache['mass'])
+    overlay_mass_matched_external_curves(ax4, sample_mass, llp_pdg_id)
+    ax4.set_ylim(1e-6, 1)
 
     ax4.legend(fontsize=8, loc='upper right')
     
     plt.tight_layout()
-    plt.savefig(os.path.join(args.outdir, exclusion_plot_name), dpi=150)
+    plt.savefig(os.path.join(image_dir, exclusion_plot_name), dpi=150)
 
-    df_results.to_csv(os.path.join(args.outdir, "particle_decay_results_2body.csv"), index=False)
-    event_df.to_csv(os.path.join(args.outdir, "event_decay_statistics_2body.csv"), index=False)
-    print("\nResults saved to", args.outdir)
-    print(f"Plots: {exclusion_plot_name}, {separation_plot_name}")
+    df_results.to_csv(os.path.join(data_dir, "particle_decay_results_2body.csv"), index=False)
+    event_df.to_csv(os.path.join(data_dir, "event_decay_statistics_2body.csv"), index=False)
+    print(f"\nPlots saved to {image_dir}")
+    print(f"  {exclusion_plot_name}, {separation_plot_name}")
+    print(f"Data saved to {data_dir}")
     print(f"\nNormalization: n_generated={scan['n_generated']}, "
           f"n_llp_events={scan['n_llp_events']} "
           f"(0-LLP fraction: {1 - scan['n_llp_events']/scan['n_generated']:.1%})")

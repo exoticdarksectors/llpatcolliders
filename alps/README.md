@@ -7,13 +7,13 @@ This repository is currently centered on a Pythia generation + signal acceptance
 See `howto.md` for the full command sequence.
 
 Pipeline stages:
-1. **Production** — `generator/produce.sh` runs `generator` in parallel batches until a target number of LLP rows is reached. Both cmnd files use BR=1.0 (efficiency maps); rescale by true BR in analysis and always pass explicit `--xsec` (do not use the script default). Output goes to `output/`.
-2. **Signal acceptance** — `decayProbPerEvent_2body.py` ray-casts, computes decay probabilities, produces exclusion plots.
-3. **Surface hit-map** — `signal_surface_hitmap_v2.py` maps accepted decays to tunnel surface coordinates.
+1. **Production** — `generator/produce.sh` runs `generator` in parallel batches until a target number of **generated events** is reached. Both cmnd files use BR=1.0 (efficiency maps); rescale by true BR in analysis and always pass explicit `--xsec` (do not use the script default). Output goes to `output/`.
+2. **Signal acceptance** — `decayProbPerEvent_2body.py` ray-casts, computes decay probabilities with 2-body (a→μ⁺μ⁻) acceptance cuts, produces exclusion plots with mass-matched external comparison curves.
+3. **Surface hit-map** — `signal_surface_hitmap_v2.py` maps accepted decays to tunnel surface coordinates with closed-form decay probability and multi-seed adaptive 2D region growing.
 
 HL-LHC normalization notes (`sqrt(s)=14 TeV`, `L=3000 fb^-1`):
-- Heavy (`h -> aa`): `--xsec 60000` (σ(pp→h) ≈ 60 pb). Exclusion curve gives BR(h→aa)_min.
-- Light (`B -> K(*)a`): `--xsec 373000000` (σ(pp→bb̄, inclusive) ≈ 0.37 mb from Pythia at 13.6 TeV). Generator uses BR(B→Ka)=1, so the exclusion curve gives BR(B→Ka)_min directly.
+- Heavy (`h -> aa`): `--xsec 54700` (σ(gg→h) ≈ 54.7 pb, N3LO, 14 TeV). Exclusion curve gives BR(h→aa)_min.
+- Light (`B -> K(*)a`): `--xsec 373000000` (σ(pp→bb̄, inclusive) ≈ 373 µb). Generator uses BR(B→Ka)=1, so the exclusion curve gives BR(B→Ka)_min directly.
 
 ## Main scripts
 
@@ -27,15 +27,22 @@ HL-LHC normalization notes (`sqrt(s)=14 TeV`, `L=3000 fb^-1`):
 ### `decayProbPerEvent_2body.py`
 - Ray-casts LLP directions from the IP to get entry/exit distances.
 - Computes lifetime-dependent decay probability with 2-body (μ⁺μ⁻) acceptance cuts.
+- Extended lifetime scan: 10^-2 to 10^5.5 ns (80 points by default).
+- Mass-matched external comparison curves via `overlay_mass_matched_external_curves()`:
+  infers sample mass from CSV, loads only `external/<STEM>_m<tag>.csv` files at
+  the matching mass.
 - Writes `particle_decay_results_2body.csv`, `event_decay_statistics_2body.csv`, and
-  exclusion/separation plots.
+  exclusion/separation plots to `--outdir`.
+- Key CLI args: `--xsec` (fb), `--lumi` (fb^-1), `--outdir`, `--n-events`,
+  `--lifetime-min-ns`, `--lifetime-max-ns`, `--lifetime-points`.
 
 ### `signal_surface_hitmap_v2.py`
 - Maps accepted decays to tunnel surface coordinates (arc-length s, profile angle θ).
-- Computes contiguous-arc efficiency **and** adaptive 2D region-growing efficiency
-  vs. instrumented area for detector optimization.
+- Uses vectorized closed-form decay probability (no 2-body acceptance model).
+- Computes contiguous-arc efficiency **and** multi-seed adaptive 2D region-growing
+  efficiency vs. instrumented area for detector optimization.
 - Produces surface coverage, efficiency comparison (fixed arc vs adaptive 2D), and
-  density cross-section plots.
+  density cross-section plots.  Output saved to `--outdir`/images/.
 
 ### `backgroundFullGeo.py` (optional)
 - Full-geometry muon-trident background Monte Carlo.
