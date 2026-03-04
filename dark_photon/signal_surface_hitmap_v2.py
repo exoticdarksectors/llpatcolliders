@@ -32,42 +32,6 @@ from gargoyle_geometry import (
     mesh_fiducial, path_3d_fiducial,
 )
 
-M_DAUGHTER = 0.10566  # GeV/c² (muon mass, matching generator decay a → μ⁺μ⁻)
-P_CUT   = 0.600      # GeV/c — minimum daughter momentum
-SEP_MIN = 0.001      # m — minimum separation at detector (1 mm)
-
-
-# =============================================================================
-# Acceptance  (matches decayProbPerEvent_2body.py model, minus SEP_MAX)
-# =============================================================================
-def compute_acceptance_limits(gamma, beta, mass, p_cut=P_CUT):
-    E_min = np.sqrt(p_cut**2 + M_DAUGHTER**2)
-    c_P = (1.0 - 2.0 * E_min / (gamma * mass)) / beta
-    c_P = min(c_P, 1.0)
-    return min(c_P, beta)
-
-def compute_c_S(d_remaining, gamma, beta, sep_min=SEP_MIN):
-    if d_remaining <= 0:
-        return 1.0
-    theta_min = sep_min / d_remaining
-    if theta_min <= 0:
-        return 0.0
-    cos_theta_min = np.cos(min(theta_min, np.pi))
-    denom = gamma**2 * (1.0 - cos_theta_min)
-    if denom <= 0:
-        return 0.0
-    val = (1.0 - 2.0 / denom) / beta**2
-    if val <= 0:
-        return 0.0
-    return np.sqrt(val)
-
-def acceptance_at_exit(gamma, beta, mass, d_remaining=0.01,
-                       p_cut=P_CUT, sep_min=SEP_MIN):
-    c_max = compute_acceptance_limits(gamma, beta, mass, p_cut)
-    if c_max <= 0:
-        return 0.0
-    c_S = compute_c_S(d_remaining, gamma, beta, sep_min)
-    return max(0.0, c_max - c_S)
 
 
 # =============================================================================
@@ -284,18 +248,19 @@ def contiguous_efficiency(theta_values, weights, n_sectors=72):
 def adaptive_2d_efficiency(exit_s, exit_theta, weights,
                            n_s_bins=40, n_theta_bins=36):
     """
-    Greedy 2D connected region growing in (s, θ) space.
+    Multi-seed greedy connected region growing in (s, θ) space.
 
-    Starts from the highest-signal bin and iteratively annexes
-    the 8-connected neighbor with the largest signal weight.
+    Runs greedy 8-connected growth from many seed bins and takes the
+    best-achievable efficiency envelope vs area across those runs.
+    This reduces strong dependence on a single starting bin.
     θ wraps (periodic); s does not.
 
     Returns
     -------
-    cum_area : ndarray   — cumulative instrumented area (m²)
-    cum_eff  : ndarray   — cumulative signal efficiency (fraction)
-    region_at : dict      — {target_eff: set of (is, it) bin indices}
-    hist     : 2D array  — the signal histogram
+    cum_area : ndarray    — cumulative instrumented area (m²)
+    cum_eff  : ndarray    — best efficiency envelope (fraction)
+    region_at : dict      — best region snapshots at target efficiencies
+    hist     : 2D array   — the signal histogram
     s_edges, theta_edges : bin edges
     """
     import heapq
@@ -309,66 +274,88 @@ def adaptive_2d_efficiency(exit_s, exit_theta, weights,
 
     # Area per bin (each bin is a strip of tunnel wall)
     ds = total_length / n_s_bins
-    dtheta_frac = 1.0 / n_theta_bins           # fraction of perimeter
-    area_per_bin = dtheta_frac * perimeter * ds  # m²
-
-    # Start from highest-signal bin
-    start = np.unravel_index(np.argmax(hist), hist.shape)
-
-    region = set()
-    region.add(start)
-
-    # Max-heap (negate for max since heapq is min-heap)
-    # Entries: (-signal, is, it)
-    frontier = []
-    in_frontier = set()
-
-    def push_neighbors(si, ti):
-        for ds_ in (-1, 0, 1):
-            for dt_ in (-1, 0, 1):
-                if ds_ == 0 and dt_ == 0:
-                    continue
-                ns = si + ds_
-                nt = (ti + dt_) % n_theta_bins   # θ wraps
-                if 0 <= ns < n_s_bins:
-                    key = (ns, nt)
-                    if key not in region and key not in in_frontier:
-                        heapq.heappush(frontier, (-hist[ns, nt], ns, nt))
-                        in_frontier.add(key)
-
-    push_neighbors(*start)
-
-    cum_signal = [hist[start]]
-    cum_area = [area_per_bin]
-
-    # Snapshots at target efficiencies
-    targets_snap = {0.50, 0.60, 0.70, 0.80, 0.90, 0.95, 0.99}
-    region_at = {}
+    dtheta_frac = 1.0 / n_theta_bins
+    area_per_bin = dtheta_frac * perimeter * ds
 
     total_bins = n_s_bins * n_theta_bins
+    cum_area = np.arange(1, total_bins + 1, dtype=float) * area_per_bin
 
-    while frontier and len(region) < total_bins:
-        neg_sig, si, ti = heapq.heappop(frontier)
-        key = (si, ti)
-        if key in region:
-            continue
-        region.add(key)
-        push_neighbors(si, ti)
+    targets = [0.50, 0.60, 0.70, 0.80, 0.90, 0.95, 0.99]
+    best_eff = np.zeros(total_bins, dtype=float)
+    best_area_for_target = {t: np.inf for t in targets}
+    region_at = {}
 
-        cum_signal.append(cum_signal[-1] + hist[si, ti])
-        cum_area.append(cum_area[-1] + area_per_bin)
+    seed_bins = np.argwhere(hist > 0)
+    if len(seed_bins) == 0:
+        seed_bins = np.array([np.unravel_index(np.argmax(hist), hist.shape)])
 
-        # Check snapshot targets
-        eff_now = cum_signal[-1]
-        for tgt in list(targets_snap):
-            if eff_now >= tgt:
-                region_at[tgt] = region.copy()
-                targets_snap.discard(tgt)
+    # Try high-signal seeds first.
+    seed_bins = sorted((int(si), int(ti)) for si, ti in seed_bins)
+    seed_bins.sort(key=lambda st: hist[st[0], st[1]], reverse=True)
 
-    cum_area = np.array(cum_area)
-    cum_eff = np.array(cum_signal)
+    def grow_from_seed(start):
+        region = {start}
+        frontier = []
+        in_frontier = set()
 
-    return cum_area, cum_eff, region_at, hist, s_edges, theta_edges
+        def push_neighbors(si, ti):
+            for ds_ in (-1, 0, 1):
+                for dt_ in (-1, 0, 1):
+                    if ds_ == 0 and dt_ == 0:
+                        continue
+                    ns = si + ds_
+                    nt = (ti + dt_) % n_theta_bins
+                    if 0 <= ns < n_s_bins:
+                        key = (ns, nt)
+                        if key not in region and key not in in_frontier:
+                            heapq.heappush(frontier, (-hist[ns, nt], ns, nt))
+                            in_frontier.add(key)
+
+        push_neighbors(*start)
+
+        cum_signal = [hist[start]]
+        snapshots = {}
+        next_target_idx = 0
+
+        while (next_target_idx < len(targets) and
+               cum_signal[-1] >= targets[next_target_idx]):
+            snapshots[targets[next_target_idx]] = region.copy()
+            next_target_idx += 1
+
+        while frontier and len(region) < total_bins:
+            _, si, ti = heapq.heappop(frontier)
+            key = (si, ti)
+            if key in region:
+                continue
+
+            region.add(key)
+            push_neighbors(si, ti)
+            cum_signal.append(cum_signal[-1] + hist[si, ti])
+
+            while (next_target_idx < len(targets) and
+                   cum_signal[-1] >= targets[next_target_idx]):
+                snapshots[targets[next_target_idx]] = region.copy()
+                next_target_idx += 1
+
+        if len(cum_signal) < total_bins:
+            cum_signal.extend([cum_signal[-1]] * (total_bins - len(cum_signal)))
+
+        return np.array(cum_signal, dtype=float), snapshots
+
+    for start in seed_bins:
+        cum_signal_seed, snapshots_seed = grow_from_seed(start)
+        best_eff = np.maximum(best_eff, cum_signal_seed)
+
+        for tgt, region_seed in snapshots_seed.items():
+            i_seed = np.searchsorted(cum_signal_seed, tgt)
+            if i_seed >= total_bins:
+                continue
+            area_seed = cum_area[i_seed]
+            if area_seed < best_area_for_target[tgt]:
+                best_area_for_target[tgt] = area_seed
+                region_at[tgt] = region_seed
+
+    return cum_area, best_eff, region_at, hist, s_edges, theta_edges
 
 
 # =============================================================================
@@ -424,18 +411,14 @@ def run_analysis(csv_file, lifetime_seconds=None, outdir="output"):
     beta = momentum / energy
 
     if lifetime_seconds is not None:
-        from scipy.integrate import quad
         print(f"\nComputing decay probabilities (τ = {lifetime_seconds:.2e} s)...")
         decay_prob = np.zeros(n)
-        for idx in tqdm(np.where(hits)[0], desc="Decay prob"):
-            g = gamma[idx]; b = beta[idx]; m = mass[idx]
-            lam = g * b * 299792458.0 * lifetime_seconds
-            d_entry = entry_d[idx]; d_exit = exit_d[idx]
-            def integrand(d):
-                return (1.0/lam) * np.exp(-d/lam) * \
-                       acceptance_at_exit(g, b, m, d_exit - d)
-            result, _ = quad(integrand, d_entry, d_exit, limit=100)
-            decay_prob[idx] = result
+        hit_mask = np.where(hits)[0]
+        g = gamma[hit_mask]; b = beta[hit_mask]
+        lam = g * b * 299792458.0 * lifetime_seconds
+        d_en = entry_d[hit_mask]; d_ex = exit_d[hit_mask]
+        # Closed-form: P = exp(-d_entry/λ) - exp(-d_exit/λ)
+        decay_prob[hit_mask] = np.exp(-d_en / lam) - np.exp(-d_ex / lam)
         weights = decay_prob[hits]
         weight_label = f'Decay prob (τ={lifetime_seconds:.1e}s)'
     else:
@@ -556,7 +539,7 @@ def run_analysis(csv_file, lifetime_seconds=None, outdir="output"):
 
     adapt_area_for_target = {}
     print(f"\n{'Eff':>6} {'Area (m²)':>10} {'% total':>8} {'~Cost':>8} "
-          f"{'Saving vs arc':>14}")
+          f"{'vs fixed arc':>14}")
     print("-" * 55)
     for tgt in targets:
         i_adapt = np.searchsorted(adapt_eff, tgt)
@@ -564,14 +547,14 @@ def run_analysis(csv_file, lifetime_seconds=None, outdir="output"):
             a_ad = adapt_area[i_adapt]
             adapt_area_for_target[tgt] = a_ad
             cost_ad = a_ad / 500 * 7
-            # Compare to fixed arc
-            saving = ''
+            # Compare to fixed arc (signed area delta).
+            delta = ''
             if tgt in area_for_target:
                 a_fix = area_for_target[tgt]
-                pct = (1 - a_ad / a_fix) * 100
-                saving = f'{pct:+.0f}%'
+                delta_pct = (a_ad / a_fix - 1) * 100
+                delta = f'{delta_pct:+.0f}%'
             print(f"{tgt:>5.0%} {a_ad:>10.0f} {a_ad/total_surface_area:>7.0%} "
-                  f"{'${:.1f}M'.format(cost_ad):>8} {saving:>14}")
+                  f"{'${:.1f}M'.format(cost_ad):>8} {delta:>14}")
 
     # =================================================================
     # 2D histogram (same binning as adaptive analysis)
@@ -713,11 +696,13 @@ def run_analysis(csv_file, lifetime_seconds=None, outdir="output"):
 
         a80_ad = adapt_area_for_target.get(adapt_target_show, 0)
         a80_fix = area_for_target.get(adapt_target_show, 0)
-        saving = (1 - a80_ad / a80_fix) * 100 if a80_fix > 0 else 0
+        delta_pct = (a80_ad / a80_fix - 1) * 100 if a80_fix > 0 else 0
+        delta_text = (f"{abs(delta_pct):.0f}% "
+                      f"{'more' if delta_pct >= 0 else 'less'} area")
         ax.set_title(
             f'80% Efficiency — Adaptive: {a80_ad:.0f} m² vs '
             f'Fixed arc: {a80_fix:.0f} m² '
-            f'({saving:.0f}% less area)')
+            f'({delta_text})')
     else:
         ax.set_title('80% Efficiency Region')
 
@@ -989,10 +974,12 @@ def run_analysis(csv_file, lifetime_seconds=None, outdir="output"):
             if tgt in adapt_area_for_target:
                 a_ad = adapt_area_for_target[tgt]
                 cost_ad = a_ad / 500 * 7
-                saving = (1 - a_ad / a_fix) * 100
+                delta_pct = (a_ad / a_fix - 1) * 100
+                delta_text = (f"{abs(delta_pct):.0f}% "
+                              f"{'more' if delta_pct >= 0 else 'less'}")
                 print(f"  Adaptive:   {a_ad:.0f} m² ("
                       f"{a_ad/total_surface_area:.0%} of total, "
-                      f"~${cost_ad:.1f}M, {saving:.0f}% less)")
+                      f"~${cost_ad:.1f}M, {delta_text})")
 
     print("\nDone!")
 

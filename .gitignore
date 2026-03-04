@@ -41,3 +41,5 @@ venv/
 .AppleDouble
 *.swp
 *.csv
+# BR reference tables are curated inputs, not generated output — keep them
+!dark_photon/generator/br_tables/*.csv
