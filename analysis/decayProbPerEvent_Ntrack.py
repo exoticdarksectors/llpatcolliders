@@ -23,7 +23,7 @@ import argparse
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'geometry'))
 _SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 
-from utils import infer_sample_mass, overlay_mass_matched_external_curves
+from utils import infer_sample_mass, overlay_mass_matched_external_curves, exclusion_ylabel
 
 import numpy as np
 import pandas as pd
@@ -970,7 +970,7 @@ if __name__ == "__main__":
                    color='blue', linewidth=2,
                    label='PX56 (pair+window)')
         ax2.set_xlabel(r'$c\tau$ (m)')
-        ax2.set_ylabel(r"BR$(h \to A'A')_{\min}$")
+        ax2.set_ylabel(exclusion_ylabel(llp_pdg_id))
         ax2.set_title('Exclusion sensitivity (3 signal events)')
         ax2.set_ylim(1e-6, 1)
         ax2.grid(True, which="both", ls="-", alpha=0.2)
@@ -984,10 +984,17 @@ if __name__ == "__main__":
                      style='italic', alpha=0.6)
 
         if args.external_dir:
-            overlay_mass_matched_external_curves(ax2, sample_mass, args.external_dir)
+            overlay_mass_matched_external_curves(ax2, sample_mass, args.external_dir,
+                                                 llp_pdg_id)
 
         ax2.legend(fontsize=8, loc='upper right')
-        plt.tight_layout()
+
+        mass_str = f'{sample_mass:.1f} GeV' if sample_mass is not None else '?'
+        fig.suptitle(f'{output_tag}  |  $m = {mass_str}$  |  '
+                     f'$\\sigma = {args.xsec:.3g}$ fb  |  '
+                     f'$L = {args.lumi:.0f}$ fb$^{{-1}}$',
+                     fontsize=12)
+        plt.tight_layout(rect=[0, 0, 1, 0.95])
 
         exclusion_plot_name = f"exclusion_Ntrack_{output_tag}.png"
         exclusion_plot_path = os.path.join(image_dir, exclusion_plot_name)

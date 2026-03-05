@@ -13,6 +13,16 @@ def infer_sample_mass(mass_values):
     return float(np.median(masses))
 
 
+def exclusion_ylabel(llp_pdg_id):
+    """Return the correct y-axis LaTeX label for exclusion plots."""
+    if llp_pdg_id == 9000001:
+        return r'BR$(B \to K^{(*)} a)_{\min}$'
+    elif llp_pdg_id == 6000113:
+        return r'BR$(h \to aa)_{\min}$'
+    else:
+        return r"BR$(h \to A'A')_{\min}$"
+
+
 def candidate_mass_tags(mass):
     """Return filename tags commonly used for mass-stamped external curves."""
     if mass is None or not np.isfinite(mass):
@@ -75,7 +85,6 @@ def overlay_mass_matched_external_curves(ax, sample_mass, external_dir,
                           label=f"CODEX-b B→KS (m={sample_mass:.1f} GeV)")
                 loaded += 1
                 break
-        ax.set_ylabel(r'BR$(B \to K^{(*)} a)_{\min}$')
     else:
         # Heavy ALP / dark photon: h->SS dark-Higgs curves (mass-matched)
         stems = [
@@ -110,8 +119,6 @@ def overlay_mass_matched_external_curves(ax, sample_mass, external_dir,
                           color=color, linewidth=2, linestyle=ls, label=label)
                 loaded += 1
                 break
-
-        ax.set_ylabel(r'BR$(h \to aa)_{\min}$')
 
     if loaded == 0:
         available = sorted(os.path.basename(p) for p in glob.glob(

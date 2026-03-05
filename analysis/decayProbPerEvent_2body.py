@@ -24,7 +24,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'geometry'))
 _SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 _ROOT_DIR = os.path.join(_SCRIPT_DIR, '..')
 
-from utils import infer_sample_mass, overlay_mass_matched_external_curves
+from utils import infer_sample_mass, overlay_mass_matched_external_curves, exclusion_ylabel
 
 import numpy as np
 import pandas as pd
@@ -560,6 +560,8 @@ if __name__ == "__main__":
               f"(0-LLP fraction: {1 - scan['n_llp_events']/scan['n_generated']:.1%})")
 
     # === Plotting ===
+    sample_mass = infer_sample_mass(geo_cache['mass'])
+
     fig, axes = plt.subplots(2, 2, figsize=(14, 10))
 
     # Plot 1: Acceptance vs lifetime
@@ -607,16 +609,33 @@ if __name__ == "__main__":
     ax4.set_xlabel(r'$c\tau$ (m)')
     ax4.grid(True, which="both", ls="-", alpha=0.2)
 
+    ax4.set_ylabel(exclusion_ylabel(llp_pdg_id))
+
     # External comparison curves (mass-matched overlay)
-    sample_mass = infer_sample_mass(geo_cache['mass'])
     if args.external_dir:
         overlay_mass_matched_external_curves(
             ax4, sample_mass, args.external_dir, llp_pdg_id)
     ax4.set_ylim(1e-6, 1)
 
+    # Decay mode annotation
+    if np.isclose(M_DAUGHTER, 0.10566, atol=0.001):
+        decay_mode = r'$a \to \mu^+\mu^-$'
+    else:
+        decay_mode = f'$m_{{d}}={M_DAUGHTER:.4g}$ GeV'
+    ax4.text(0.05, 0.95, decay_mode, transform=ax4.transAxes,
+             fontsize=10, verticalalignment='top',
+             bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.5))
+
     ax4.legend(fontsize=8, loc='upper right')
 
-    plt.tight_layout()
+    # Suptitle with sample info
+    mass_str = f'{sample_mass:.1f} GeV' if sample_mass is not None else '?'
+    fig.suptitle(f'{output_tag}  |  $m = {mass_str}$  |  '
+                 f'{decay_mode}  |  '
+                 f'$\\sigma = {args.xsec:.3g}$ fb  |  '
+                 f'$L = {args.lumi:.0f}$ fb$^{{-1}}$',
+                 fontsize=12)
+    plt.tight_layout(rect=[0, 0, 1, 0.95])
     plt.savefig(os.path.join(image_dir, exclusion_plot_name), dpi=150)
 
     df_results.to_csv(os.path.join(data_dir,

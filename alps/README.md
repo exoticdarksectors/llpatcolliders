@@ -23,11 +23,14 @@ bash generator/produce.sh alps/cmnd/light_alp.cmnd 50000 alp_light_m1 4 50000 --
 
 ```bash
 python analysis/decayProbPerEvent_2body.py output/alps/data/alp_heavy_m15.csv \
-    --xsec 54700 --outdir output/alps --external-dir alps/external
+    --xsec 54700 --outdir output/alps --external-dir higgs/external
 
 python analysis/decayProbPerEvent_2body.py output/alps/data/alp_light_m1.csv \
-    --xsec 373000000 --outdir output/alps --external-dir alps/external
+    --xsec 373000000 --outdir output/alps
 
 python analysis/signal_surface_hitmap.py output/alps/data/alp_heavy_m15.csv \
     --outdir output/alps
 ```
+
+**Note:** `alps/external/` is intentionally empty. The heavy ALP (h->aa) uses the
+same PBC benchmark curves (h->SS) as the Higgs portal, located in `higgs/external/`.
