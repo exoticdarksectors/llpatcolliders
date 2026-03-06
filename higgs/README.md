@@ -25,5 +25,5 @@ python analysis/signal_surface_hitmap.py output/higgs/data/higgs_m15.csv \
 ## Background
 
 ```bash
-python higgs/background_trident.py
+python analysis/background_trident.py --outdir output/higgs
 ```

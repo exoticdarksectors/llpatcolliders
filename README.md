@@ -42,6 +42,7 @@ python analysis/signal_surface_hitmap.py output/alps/data/alp_heavy_m15.csv \
 | `decayProbPerEvent_2body.py` | Analytical 2-body acceptance | Any 2-body decay (higgs, alps) |
 | `decayProbPerEvent_Ntrack.py` | N-track daughter pairing | Multi-body decay (dark photon) |
 | `signal_surface_hitmap.py` | Surface coverage optimization | Any model |
+| `background_trident.py` | Beam muon trident background MC | Any model |
 
 ## Adding a New Model
 
