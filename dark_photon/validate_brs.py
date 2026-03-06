@@ -16,8 +16,9 @@ Acceptance criteria (W4 Phase 2):
   (resonance windows: ρ+ω = 0.68–0.82 GeV; φ = 0.98–1.05 GeV)
 
 Validation grids:
-  On-grid  (exact CSV points): 0.50, 0.77, 1.00, 1.50 GeV — must give ~0% error
-  Off-grid (interpolation):    0.33, 0.62, 0.82, 1.15  GeV — tests linear interp
+  On-grid  (exact CSV points): 0.50, 0.77, 1.00, 1.50, 1.70 GeV — must give ~0% error
+  Off-grid (interpolation):    0.33, 0.62, 0.82, 1.15, 1.65 GeV — tests linear interp
+  Transition check:            VMD(1.70) vs pQCD(1.71) — diagnostic smoothness check
 
 Usage (from dark_photon/generator/ or dark_photon/):
     conda run -n llpatcolliders python generator/validate_brs.py
@@ -53,12 +54,12 @@ M_PI  = 0.13957
 
 # ── validation configuration ──────────────────────────────────────────────────
 # Points that ARE in the 25-point CSV grid (must agree to <1%)
-ON_GRID  = [0.50, 0.77, 1.00, 1.50]
+ON_GRID  = [0.50, 0.77, 1.00, 1.50, 1.70]
 # Points that are NOT in the grid (tests linear interpolation)
-OFF_GRID = [0.33, 0.62, 0.82, 1.15]
+OFF_GRID = [0.33, 0.62, 0.82, 1.15, 1.65]
 VMD_GRID = sorted(set(ON_GRID + OFF_GRID))   # full VMD validation list
 
-PERT_GRID = [3.0, 5.0, 10.0, 15.0]           # perturbative QCD sanity check
+PERT_GRID = [1.75, 2.0, 3.0, 5.0, 10.0, 15.0] # perturbative QCD sanity check
 
 # Resonance tolerance windows (ρ+ω: 0.68–0.82 GeV; φ: 0.98–1.05 GeV)
 RESONANCE_WINDOWS = [(0.68, 0.82), (0.98, 1.05)]
@@ -296,6 +297,42 @@ def compare_vmd(masses, cols, data, direct, on_grid_set):
     return rows
 
 
+def check_transition_smoothness(cols, data, perturb_above=1.7):
+    """Compare VMD table and pQCD BRs at the transition boundary (diagnostic)."""
+    # VMD side: interpolate at the table edge
+    m_vmd = perturb_above
+    bi_vmd = interp_at(m_vmd, cols, data)
+    ts_vmd = table_summary(bi_vmd)
+
+    # pQCD side: compute just above the boundary
+    m_pqcd = perturb_above + 0.01
+    b_pqcd = _perturbative_brs(m_pqcd)
+
+    compare = ["lep", "had", "ee", "mumu"]
+    print(f"\n=== VMD/pQCD Transition Smoothness (m = {m_vmd} vs {m_pqcd} GeV) ===")
+    print(f"{'Channel':>8}  {'VMD':>7}  {'pQCD':>7}  {'Jump':>7}  {'Status':>6}")
+    print("─" * 45)
+
+    any_warning = False
+    for ch in compare:
+        v_vmd  = ts_vmd.get(ch, 0.0)
+        v_pqcd = b_pqcd.get(ch, 0.0)
+        denom  = max(abs(v_vmd), abs(v_pqcd), 1e-8)
+        jump   = abs(v_vmd - v_pqcd) / denom
+        ok     = jump < 0.15
+        if not ok:
+            any_warning = True
+        print(f"{ch:>8}  {v_vmd:>7.4f}  {v_pqcd:>7.4f}  {jump:>7.1%}  "
+              f"{'ok' if ok else 'WARN':>6}")
+
+    if any_warning:
+        print("WARNING: >15% discontinuity at VMD/pQCD boundary. "
+              "This is expected in the 1.7 GeV transition region "
+              "(different systematics).")
+    else:
+        print("Transition smooth (<15% jump in all channels).")
+
+
 def check_perturbative(masses):
     """Print and return perturbative BR sanity check rows."""
     rows = []
@@ -475,6 +512,7 @@ def main():
                 direct = None
 
     rows += check_perturbative(PERT_GRID)
+    check_transition_smoothness(cols, data)
 
     # ── summary ───────────────────────────────────────────────────────────────
     vmd_rows = [r for r in rows if r["region"] == "VMD"]

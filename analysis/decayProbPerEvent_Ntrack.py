@@ -132,11 +132,16 @@ def integrate_decay_prob(d_start, d_end, decay_length):
     """
     Exponential decay probability integrated over [d_start, d_end].
 
-    P = ∫ (1/lambda) exp(-d/lambda) dd = exp(-d_start/lambda)-exp(-d_end/lambda)
+    P = exp(-d_start/lambda) - exp(-d_end/lambda)
+
+    Uses expm1 reparametrisation to avoid catastrophic cancellation
+    when (d_end - d_start) << decay_length.
     """
     if decay_length <= 0 or d_end <= d_start:
         return 0.0
-    return float(np.exp(-d_start / decay_length) - np.exp(-d_end / decay_length))
+    lead = -d_start / decay_length
+    delta = -(d_end - d_start) / decay_length
+    return float(np.exp(lead) * (-np.expm1(delta)))
 
 
 def merge_intervals(intervals):

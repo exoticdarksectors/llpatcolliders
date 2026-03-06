@@ -162,6 +162,9 @@ def acceptance_weighted_decay_prob(entry_d, exit_d, gamma, beta, mass,
       c_lower = c_S(d)                          [min separation]
       c_upper = min(c_P, c_max_sep(d), beta)    [momentum + max sep + forward]
     """
+    if mass < 2 * M_DAUGHTER:
+        return 0.0
+
     c_P_upper = compute_c_upper(gamma, beta, mass, p_cut)
 
     if c_P_upper <= 0:
@@ -561,6 +564,10 @@ if __name__ == "__main__":
 
     # === Plotting ===
     sample_mass = infer_sample_mass(geo_cache['mass'])
+    if sample_mass is not None and sample_mass < 2 * M_DAUGHTER:
+        print(f"WARNING: sample mass {sample_mass:.4f} GeV < 2*M_DAUGHTER "
+              f"({2*M_DAUGHTER:.4f} GeV). Decay to mu+mu- is kinematically "
+              f"forbidden. All acceptance-weighted probabilities will be zero.")
 
     fig, axes = plt.subplots(2, 2, figsize=(14, 10))
 
