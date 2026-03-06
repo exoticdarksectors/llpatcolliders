@@ -27,10 +27,11 @@ CLAUDE.md
 # Logs
 *.log
 
-# CSV data (regenerable) — except external comparison curves and BR tables
+# CSV data (regenerable) — except external comparison curves, BR tables, and vendored data
 *.csv
 !*/external/**/*.csv
 !*/br_tables/*.csv
+!*/vendored/**/*.csv
 
 # ROOT
 *.root

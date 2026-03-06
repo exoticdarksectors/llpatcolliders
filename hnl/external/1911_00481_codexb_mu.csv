@@ -1,0 +1,15 @@
+mass_GeV,mixing_sq,flavor,column,target_variant,curve_role,source_ref
+0.5570495167,1.58359568965e-07,mu_only,codexb,CODEXB1,future_sensitivity,CODEX-b:2019jve HNL combined vector plots
+0.9421601762,6.52313904863e-08,mu_only,codexb,CODEXB1,future_sensitivity,CODEX-b:2019jve HNL combined vector plots
+1.2090453823,3.68037422616e-08,mu_only,codexb,CODEXB1,future_sensitivity,CODEX-b:2019jve HNL combined vector plots
+1.3452569045,3.21243046536e-08,mu_only,codexb,CODEXB1,future_sensitivity,CODEX-b:2019jve HNL combined vector plots
+1.4823549795,2.47744417671e-08,mu_only,codexb,CODEXB1,future_sensitivity,CODEX-b:2019jve HNL combined vector plots
+1.5268916016,0.00999964340607,mu_only,codexb,CODEXB1,future_sensitivity,CODEX-b:2019jve HNL combined vector plots
+1.9031902665,1.9857844175e-08,mu_only,codexb,CODEXB1,future_sensitivity,CODEX-b:2019jve HNL combined vector plots
+2.3334141214,2.31699720003e-08,mu_only,codexb,CODEXB1,future_sensitivity,CODEX-b:2019jve HNL combined vector plots
+2.6241659146,4.01599591892e-08,mu_only,codexb,CODEXB1,future_sensitivity,CODEX-b:2019jve HNL combined vector plots
+2.7720822165,3.68037422616e-08,mu_only,codexb,CODEXB1,future_sensitivity,CODEX-b:2019jve HNL combined vector plots
+2.9198062282,3.70277825415e-08,mu_only,codexb,CODEXB1,future_sensitivity,CODEX-b:2019jve HNL combined vector plots
+3.36915725,3.90343006627e-08,mu_only,codexb,CODEXB1,future_sensitivity,CODEX-b:2019jve HNL combined vector plots
+3.8240571269,5.53433305596e-08,mu_only,codexb,CODEXB1,future_sensitivity,CODEX-b:2019jve HNL combined vector plots
+4.1307699479,1.04249166544e-07,mu_only,codexb,CODEXB1,future_sensitivity,CODEX-b:2019jve HNL combined vector plots

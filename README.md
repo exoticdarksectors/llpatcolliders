@@ -12,10 +12,11 @@ analysis/           Shared analysis scripts (decay probability, surface hitmap)
 higgs/              Higgs portal: h -> SS (dark scalar)
 alps/               ALP portal: h -> aa (heavy) and B -> K(*)a (light)
 dark_photon/        Dark photon: h -> A'A' (R-ratio BRs)
+hnl/                HNL portal: heavy neutral leptons (FONLL + MadGraph)
 FCC/                FCC detector studies (notebooks)
 ```
 
-Each model directory contains: `cmnd/` (Pythia8 configs), `external/` (comparison curves), and a `README.md` with run instructions.
+Each model directory contains comparison curves in `external/` and a `README.md` with run instructions. Higgs/ALP/dark photon use the shared Pythia8 generator (`cmnd/` configs). HNL uses its own FONLL-based production pipeline.
 
 ## Quick Start
 
@@ -34,6 +35,19 @@ python analysis/decayProbPerEvent_2body.py output/alps/data/alp_heavy_m15.csv \
 python analysis/signal_surface_hitmap.py output/alps/data/alp_heavy_m15.csv \
     --outdir output/alps
 ```
+
+### HNL Portal (FONLL)
+
+```bash
+# 1. Generate meson -> HNL 4-vectors
+python hnl/production/decay_engine/generate_meson_csvs.py --channel Bmeson --flavor Ue --masses 1.0
+
+# 2. Combine channels and run sensitivity
+python hnl/production/combine_channels.py --flavor Ue --masses 1.0
+python hnl/analysis/run_sensitivity.py --flavor Ue --mass 1.0
+```
+
+See `hnl/README.md` for full instructions including tau and W/Z channels.
 
 ## Analysis Scripts
 

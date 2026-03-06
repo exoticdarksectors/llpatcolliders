@@ -1,0 +1,6 @@
+mass_GeV,mixing_sq,flavor,column,target_variant,curve_role,source_ref
+5,7.13095e-05,mu_only,past_exclusion,published_exclusions,past_exclusion_component,ATLAS:2019kpx via HNLimits Umu4 single-flavor compilation
+10,3.18407e-05,mu_only,past_exclusion,published_exclusions,past_exclusion_component,ATLAS:2019kpx via HNLimits Umu4 single-flavor compilation
+20,1.14699e-05,mu_only,past_exclusion,published_exclusions,past_exclusion_component,ATLAS:2019kpx via HNLimits Umu4 single-flavor compilation
+30,1.34867e-05,mu_only,past_exclusion,published_exclusions,past_exclusion_component,ATLAS:2019kpx via HNLimits Umu4 single-flavor compilation
+50,2.49816e-05,mu_only,past_exclusion,published_exclusions,past_exclusion_component,ATLAS:2019kpx via HNLimits Umu4 single-flavor compilation

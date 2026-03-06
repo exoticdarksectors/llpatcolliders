@@ -1,0 +1,26 @@
+mass_GeV,mixing_sq,flavor,column,target_variant,curve_role,source_ref
+0.14,7.29889631184e-07,mu_only,past_exclusion,published_exclusions,past_exclusion_component,T2K:2019jwa via HNLimits Umu4 single-flavor compilation
+0.15,5.4405535591e-07,mu_only,past_exclusion,published_exclusions,past_exclusion_component,T2K:2019jwa via HNLimits Umu4 single-flavor compilation
+0.16,3.81453483391e-07,mu_only,past_exclusion,published_exclusions,past_exclusion_component,T2K:2019jwa via HNLimits Umu4 single-flavor compilation
+0.17,2.84887209357e-07,mu_only,past_exclusion,published_exclusions,past_exclusion_component,T2K:2019jwa via HNLimits Umu4 single-flavor compilation
+0.18,2.13262080096e-07,mu_only,past_exclusion,published_exclusions,past_exclusion_component,T2K:2019jwa via HNLimits Umu4 single-flavor compilation
+0.19,1.53471244202e-07,mu_only,past_exclusion,published_exclusions,past_exclusion_component,T2K:2019jwa via HNLimits Umu4 single-flavor compilation
+0.2,1.13631616105e-07,mu_only,past_exclusion,published_exclusions,past_exclusion_component,T2K:2019jwa via HNLimits Umu4 single-flavor compilation
+0.21,9.07861286136e-08,mu_only,past_exclusion,published_exclusions,past_exclusion_component,T2K:2019jwa via HNLimits Umu4 single-flavor compilation
+0.22,7.0440695154e-08,mu_only,past_exclusion,published_exclusions,past_exclusion_component,T2K:2019jwa via HNLimits Umu4 single-flavor compilation
+0.23,5.2926880844e-08,mu_only,past_exclusion,published_exclusions,past_exclusion_component,T2K:2019jwa via HNLimits Umu4 single-flavor compilation
+0.24,4.15394923901e-08,mu_only,past_exclusion,published_exclusions,past_exclusion_component,T2K:2019jwa via HNLimits Umu4 single-flavor compilation
+0.25,1.54633669313e-08,mu_only,past_exclusion,published_exclusions,past_exclusion_component,T2K:2019jwa via HNLimits Umu4 single-flavor compilation
+0.26,8.8928294319e-09,mu_only,past_exclusion,published_exclusions,past_exclusion_component,T2K:2019jwa via HNLimits Umu4 single-flavor compilation
+0.27,6.06747414257e-09,mu_only,past_exclusion,published_exclusions,past_exclusion_component,T2K:2019jwa via HNLimits Umu4 single-flavor compilation
+0.28,4.52732777968e-09,mu_only,past_exclusion,published_exclusions,past_exclusion_component,T2K:2019jwa via HNLimits Umu4 single-flavor compilation
+0.29,3.53781426858e-09,mu_only,past_exclusion,published_exclusions,past_exclusion_component,T2K:2019jwa via HNLimits Umu4 single-flavor compilation
+0.3,2.76343651789e-09,mu_only,past_exclusion,published_exclusions,past_exclusion_component,T2K:2019jwa via HNLimits Umu4 single-flavor compilation
+0.31,2.28572408003e-09,mu_only,past_exclusion,published_exclusions,past_exclusion_component,T2K:2019jwa via HNLimits Umu4 single-flavor compilation
+0.32,1.84737520147e-09,mu_only,past_exclusion,published_exclusions,past_exclusion_component,T2K:2019jwa via HNLimits Umu4 single-flavor compilation
+0.33,1.55380678764e-09,mu_only,past_exclusion,published_exclusions,past_exclusion_component,T2K:2019jwa via HNLimits Umu4 single-flavor compilation
+0.34,1.31802476948e-09,mu_only,past_exclusion,published_exclusions,past_exclusion_component,T2K:2019jwa via HNLimits Umu4 single-flavor compilation
+0.35,1.1005976396e-09,mu_only,past_exclusion,published_exclusions,past_exclusion_component,T2K:2019jwa via HNLimits Umu4 single-flavor compilation
+0.36,9.60219309857e-10,mu_only,past_exclusion,published_exclusions,past_exclusion_component,T2K:2019jwa via HNLimits Umu4 single-flavor compilation
+0.37,8.74800103392e-10,mu_only,past_exclusion,published_exclusions,past_exclusion_component,T2K:2019jwa via HNLimits Umu4 single-flavor compilation
+0.38,8.13962586503e-10,mu_only,past_exclusion,published_exclusions,past_exclusion_component,T2K:2019jwa via HNLimits Umu4 single-flavor compilation

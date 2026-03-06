@@ -1,0 +1,17 @@
+mass_GeV,mixing_sq,flavor,column,target_variant,curve_role,source_ref
+0.0449467946933,0.000709507640894,mu_only,past_exclusion,published_exclusions,past_exclusion_component,Bryman:2019bjg via HNLimits Umu4 single-flavor compilation
+0.0491292327957,0.000270265782526,mu_only,past_exclusion,published_exclusions,past_exclusion_component,Bryman:2019bjg via HNLimits Umu4 single-flavor compilation
+0.0526260471468,0.00013130024426,mu_only,past_exclusion,published_exclusions,past_exclusion_component,Bryman:2019bjg via HNLimits Umu4 single-flavor compilation
+0.0563717501922,6.34118059682e-05,mu_only,past_exclusion,published_exclusions,past_exclusion_component,Bryman:2019bjg via HNLimits Umu4 single-flavor compilation
+0.0616425388325,3.15212101164e-05,mu_only,past_exclusion,published_exclusions,past_exclusion_component,Bryman:2019bjg via HNLimits Umu4 single-flavor compilation
+0.0692857342045,1.70809915902e-05,mu_only,past_exclusion,published_exclusions,past_exclusion_component,Bryman:2019bjg via HNLimits Umu4 single-flavor compilation
+0.0794996762253,8.94896902646e-06,mu_only,past_exclusion,published_exclusions,past_exclusion_component,Bryman:2019bjg via HNLimits Umu4 single-flavor compilation
+0.092482391166,5.21169864202e-06,mu_only,past_exclusion,published_exclusions,past_exclusion_component,Bryman:2019bjg via HNLimits Umu4 single-flavor compilation
+0.107585251688,3.31691091007e-06,mu_only,past_exclusion,published_exclusions,past_exclusion_component,Bryman:2019bjg via HNLimits Umu4 single-flavor compilation
+0.125154488706,2.30694127432e-06,mu_only,past_exclusion,published_exclusions,past_exclusion_component,Bryman:2019bjg via HNLimits Umu4 single-flavor compilation
+0.145592874465,1.57881231089e-06,mu_only,past_exclusion,published_exclusions,past_exclusion_component,Bryman:2019bjg via HNLimits Umu4 single-flavor compilation
+0.169368956033,1.03220579913e-06,mu_only,past_exclusion,published_exclusions,past_exclusion_component,Bryman:2019bjg via HNLimits Umu4 single-flavor compilation
+0.197027796678,7.51496914031e-07,mu_only,past_exclusion,published_exclusions,past_exclusion_component,Bryman:2019bjg via HNLimits Umu4 single-flavor compilation
+0.229203471361,5.99521078809e-07,mu_only,past_exclusion,published_exclusions,past_exclusion_component,Bryman:2019bjg via HNLimits Umu4 single-flavor compilation
+0.26663360282,6.19544213801e-07,mu_only,past_exclusion,published_exclusions,past_exclusion_component,Bryman:2019bjg via HNLimits Umu4 single-flavor compilation
+0.306826217142,1.01654910305e-06,mu_only,past_exclusion,published_exclusions,past_exclusion_component,Bryman:2019bjg via HNLimits Umu4 single-flavor compilation
