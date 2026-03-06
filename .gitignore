@@ -1,0 +1,40 @@
+# Build artifacts
+**/generator/generator
+*.o
+*.d
+*.so
+*.pcm
+
+# Output (regenerable)
+output/
+*/output/
+
+# Python
+__pycache__/
+*.pyc
+
+# macOS
+.DS_Store
+
+# Editor
+*.swp
+*.swo
+*~
+
+# Claude Code
+CLAUDE.md
+
+# Logs
+*.log
+
+# CSV data (regenerable) — except external comparison curves and BR tables
+*.csv
+!*/external/**/*.csv
+!*/br_tables/*.csv
+
+# ROOT
+*.root
+*.hepmc
+
+# Images (regenerable)
+*.png
