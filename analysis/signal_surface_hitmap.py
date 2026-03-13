@@ -34,7 +34,7 @@ from tqdm import tqdm
 from gargoyle_geometry import (
     DETECTOR_THICKNESS,
     tunnel_profile_points, eta_phi_to_direction,
-    mesh_fiducial, path_3d_fiducial,
+    get_fiducial_mesh,
 )
 
 E_CUT = 0.600       # GeV — minimum daughter momentum
@@ -43,9 +43,9 @@ SEP_MAX = 10.0      # m — maximum separation at detector
 
 
 # =============================================================================
-# Tunnel path and derived quantities
+# Tunnel path and derived quantities (deferred to first use)
 # =============================================================================
-path_3d = path_3d_fiducial
+mesh_fiducial, path_3d = get_fiducial_mesh()
 
 seg_lengths = np.array([np.linalg.norm(path_3d[i+1] - path_3d[i])
                          for i in range(len(path_3d)-1)])

@@ -27,7 +27,6 @@ BR source: br_tables/dp_brs_deliver.csv  (DeLiVeR, VMD + PDG R-ratio, <= 1.7 GeV
 """
 
 import argparse
-import math
 import sys
 from pathlib import Path
 
@@ -76,6 +75,11 @@ MIN_BR = 0.005
 SIN2TW = 0.2312          # sin^2(theta_W) at M_Z (Pythia8 default)
 COS2TW = 1.0 - SIN2TW
 # Correction factor: sigma_real = sigma_Pythia8 * K_NORM
+# Pythia8 NewGaugeBoson Z' uses internal coupling g_Z = e/(2*sin*cos).
+# For a dark photon, the coupling at each vertex is eps*e*Q_f.
+# K_NORM maps Pythia8's Z' normalization to the EM coupling convention.
+# Since DY mode has zero PX56 sensitivity, this affects only the
+# diagnostic cross-section printout, not the final exclusion.
 K_NORM = (16.0 * SIN2TW * COS2TW) ** 2   # ~ 8.09
 
 # EM charges (vector couplings for dark photon, axial = 0)
@@ -114,57 +118,7 @@ PARENT_MESONS = {
 # --------------------------------------------------------------------------
 # Perturbative QCD BRs for masses above the DeLiVeR table (> ~1.7 GeV)
 # --------------------------------------------------------------------------
-def _perturbative_brs(mass):
-    """
-    Compute dark-photon BRs via perturbative R-ratio for mass >> 1 GeV.
-    Includes alpha_s(mass) NLO correction.  Valid for m > ~2 GeV.
-    Returns dict mapping channel label -> BR (normalised to 1).
-    """
-    # alpha_s from 1-loop running: alpha_s(mu) ~ 12*pi / (33 - 2*nf) / ln(mu^2/Lambda^2)
-    # Use Lambda_QCD ~ 0.2 GeV, nf active at this scale
-    nf = 3 + (mass > 2 * 1.27) + (mass > 2 * 4.18)   # c and b thresholds
-    Lambda = 0.2
-    als = 12 * math.pi / ((33 - 2 * nf) * math.log((mass / Lambda) ** 2))
-    als = min(als, 0.4)   # cap at strong coupling for low masses
-
-    # R = Nc * sum(e_q^2) for active quarks
-    active_quarks = {"uu": 0, "dd": 0}  # u, d always active
-    active_quarks["uu"] += 1             # u quark
-    active_quarks["dd"] += 2             # d, s quarks
-    if mass > 2 * 1.27:
-        active_quarks["uu"] += 1         # c quark
-    if mass > 2 * 4.18:
-        active_quarks["dd"] += 1         # b quark
-
-    R = 3 * ((active_quarks["uu"] * (2/3)**2 + active_quarks["dd"] * (1/3)**2)
-             * (1 + als / math.pi))
-
-    total = 3.0 + R   # 3 lepton flavours + hadronic R
-
-    brs: dict = {}
-    # leptons: each open flavour gets 1/total
-    for lep_col, thresh in [("ee", 0.0), ("mumu", 2 * M_MU), ("tau", 2 * M_TAU)]:
-        brs[lep_col] = (1.0 / total) if mass > thresh else 0.0
-
-    # quarks: each flavour contributes Nc * e_q^2 * (1 + als/pi) / total
-    qcd_corr = 1 + als / math.pi
-    for flavor, q2 in [
-        ("uu_q", (2/3)**2),    # u
-        ("dd_q", (1/3)**2),    # d
-        ("ss_q", (1/3)**2),    # s
-        ("cc_q", (2/3)**2),    # c, open if mass > 2*m_c
-        ("bb_q", (1/3)**2),    # b, open if mass > 2*m_b
-    ]:
-        thresh_map = {
-            "uu_q": 0.0, "dd_q": 0.0, "ss_q": 0.0,
-            "cc_q": 2 * 1.27, "bb_q": 2 * 4.18,
-        }
-        if mass > thresh_map[flavor]:
-            brs[flavor] = 3 * q2 * qcd_corr / total
-        else:
-            brs[flavor] = 0.0
-
-    return brs
+from dp_meson_brs import perturbative_brs as _perturbative_brs
 
 
 # --------------------------------------------------------------------------

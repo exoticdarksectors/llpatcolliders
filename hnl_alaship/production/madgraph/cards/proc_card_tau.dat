@@ -1,0 +1,32 @@
+####################################################
+# Process card for HNL production (tau coupling)
+# pp → W± → τ± N1 and pp → Z → ντ N1
+# LHC 14 TeV
+#
+# MATHUSLA-style syntax with explicit W/Z decay
+# Ensures on-shell W/Z bosons appear in LHE
+####################################################
+
+# Import the HeavyN model
+import model SM_HeavyN_CKM_AllMasses_LO
+
+# Define the multiparticle sets
+define p = g u c d s u~ c~ d~ s~
+define j = g u c d s u~ c~ d~ s~
+
+# Generate EW HNL production processes (MATHUSLA syntax)
+# Explicit W/Z decay ensures bosons appear in LHE (even if off-shell)
+# Charged current: pp → W+ → τ+ N1
+generate p p > w+, w+ > ta+ n1
+
+# Charged current: pp → W- → τ- N1
+add process p p > w-, w- > ta- n1
+
+# Neutral current: pp → Z → ντ N1
+add process p p > z, z > vt n1
+
+# Neutral current: pp → Z → ν̄τ N1
+add process p p > z, z > vt~ n1
+
+# Output directory (will be set by driver script)
+output work/hnl_tau_MASS_PLACEHOLDER -nojpeg

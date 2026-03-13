@@ -194,14 +194,20 @@ def _r_ratio_from_deliver(m_dp: float, table_path: Path) -> float:
     return br_had / br_mumu
 
 
+def _alpha_s_1loop(mu: float, nf: int, Lambda: float = 0.2) -> float:
+    """1-loop running alpha_s, capped at 0.4 for low scales."""
+    if mu <= Lambda:
+        return 0.4
+    als = 12 * math.pi / ((33 - 2 * nf) * math.log((mu / Lambda) ** 2))
+    return min(als, 0.4)
+
+
 def _r_ratio_parametric(m_dp: float) -> float:
     """Perturbative R-ratio for m >> 1 GeV."""
     nf = 3 + (m_dp > 2 * 1.27) + (m_dp > 2 * 4.18)
-    lam = 0.2
-    if m_dp <= lam:
+    if m_dp <= 0.2:
         return 0.0
-    als = 12 * math.pi / ((33 - 2 * nf) * math.log((m_dp / lam) ** 2))
-    als = min(als, 0.4)
+    als = _alpha_s_1loop(m_dp, nf)
 
     eq2_sum = (2.0 / 3.0) ** 2  # u
     eq2_sum += (1.0 / 3.0) ** 2  # d
@@ -212,6 +218,64 @@ def _r_ratio_parametric(m_dp: float) -> float:
         eq2_sum += (1.0 / 3.0) ** 2  # b
 
     return 3.0 * eq2_sum * (1.0 + als / math.pi)
+
+
+def perturbative_brs(mass: float) -> dict:
+    """
+    Compute dark-photon BRs via perturbative R-ratio for mass >> 1 GeV.
+
+    Includes alpha_s(mass) NLO correction.  Valid for m > ~2 GeV.
+    Returns dict mapping channel label -> BR (normalised to 1).
+
+    Canonical implementation — imported by make_dp_cmnd.py and validate_brs.py.
+
+    The denominator counts only kinematically open lepton channels:
+      total = n_open_leptons + R
+    This ensures BRs sum to 1 at all masses, including 1.7 < m < 3.55 GeV
+    where tau is kinematically forbidden.
+    """
+    nf = 3 + (mass > 2 * 1.27) + (mass > 2 * 4.18)
+    als = _alpha_s_1loop(mass, nf)
+
+    # R = Nc * sum(e_q^2) for active quarks
+    active_quarks = {"uu": 0, "dd": 0}
+    active_quarks["uu"] += 1             # u quark
+    active_quarks["dd"] += 2             # d, s quarks
+    if mass > 2 * 1.27:
+        active_quarks["uu"] += 1         # c quark
+    if mass > 2 * 4.18:
+        active_quarks["dd"] += 1         # b quark
+
+    R = 3 * ((active_quarks["uu"] * (2/3)**2 + active_quarks["dd"] * (1/3)**2)
+             * (1 + als / math.pi))
+
+    # Count only kinematically open lepton flavors in the denominator
+    lepton_thresholds = [("ee", 0.0), ("mumu", 2 * M_MU), ("tau", 2 * 1.77686)]
+    n_open_lep = sum(1 for _, thresh in lepton_thresholds if mass > thresh)
+    total = n_open_lep + R
+
+    brs: dict = {}
+    for lep_col, thresh in lepton_thresholds:
+        brs[lep_col] = (1.0 / total) if mass > thresh else 0.0
+
+    qcd_corr = 1 + als / math.pi
+    for flavor, q2 in [
+        ("uu_q", (2/3)**2),
+        ("dd_q", (1/3)**2),
+        ("ss_q", (1/3)**2),
+        ("cc_q", (2/3)**2),
+        ("bb_q", (1/3)**2),
+    ]:
+        thresh_map = {
+            "uu_q": 0.0, "dd_q": 0.0, "ss_q": 0.0,
+            "cc_q": 2 * 1.27, "bb_q": 2 * 4.18,
+        }
+        if mass > thresh_map[flavor]:
+            brs[flavor] = 3 * q2 * qcd_corr / total
+        else:
+            brs[flavor] = 0.0
+
+    return brs
 
 
 def dp_width_eps1(m_dp: float) -> float:

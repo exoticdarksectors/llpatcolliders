@@ -27,10 +27,11 @@ CLAUDE.md
 # Logs
 *.log
 
-# CSV data (regenerable) — except external comparison curves and BR tables
+# CSV data (regenerable) — except external comparison curves, BR tables, and vendored data
 *.csv
 !*/external/**/*.csv
 !*/br_tables/*.csv
+!*/vendored/**/*.csv
 
 # ROOT
 *.root
@@ -38,3 +39,12 @@ CLAUDE.md
 
 # Images (regenerable)
 *.png
+
+# MadGraph build artifacts (regenerable)
+hnl_alaship/production/madgraph/work/
+hnl/production/madgraph/work/
+hnl_legacy/production/madgraph/work/
+
+# MadGraph PLY parser cache
+**/py.py
+**/parser.out

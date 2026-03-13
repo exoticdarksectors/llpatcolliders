@@ -10,11 +10,13 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 
 from gargoyle_geometry import (
-    mesh_fiducial, path_3d_fiducial,
+    get_fiducial_mesh,
     tunnel_profile_points, create_profile_mesh,
     Y_POSITION, DETECTOR_THICKNESS,
     TUNNEL_ALPHA, TUNNEL_BETA, TUNNEL_GAMMA, TUNNEL_DELTA, TUNNEL_WALL_HEIGHT,
 )
+
+mesh_fiducial, path_3d_fiducial = get_fiducial_mesh()
 
 # ── helpers ──────────────────────────────────────────────────────────
 
