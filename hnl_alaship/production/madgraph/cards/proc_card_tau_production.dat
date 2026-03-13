@@ -1,0 +1,25 @@
+####################################################
+# Process card for tau lepton production pool
+# pp → W± → τ± ντ  and  pp → Z/γ* → τ+ τ-
+# LHC 14 TeV
+#
+# Generates undecayed tau leptons for subsequent
+# analytical decay τ → N X using HNLCalc BRs.
+####################################################
+
+# Standard Model (no BSM needed for tau pool)
+import model sm
+
+# Define the multiparticle sets
+define p = g u c d s u~ c~ d~ s~
+define j = g u c d s u~ c~ d~ s~
+
+# W → τ ν production
+generate p p > w+, w+ > ta+ vt
+add process p p > w-, w- > ta- vt~
+
+# Drell-Yan τ pair production
+add process p p > ta+ ta-
+
+# Output directory (will be set by driver script)
+output work/tau_pool -nojpeg
