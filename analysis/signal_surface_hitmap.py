@@ -37,6 +37,9 @@ from gargoyle_geometry import (
     mesh_fiducial, path_3d_fiducial,
 )
 
+E_CUT = 0.600       # GeV — minimum daughter momentum
+SEP_MIN = 0.001     # m — minimum separation at detector (1 mm)
+SEP_MAX = 10.0      # m — maximum separation at detector
 
 
 # =============================================================================
@@ -342,6 +345,163 @@ def adaptive_2d_efficiency(exit_s, exit_theta, weights,
 
 
 # =============================================================================
+# Daughter tracing MC
+# =============================================================================
+def sample_daughter_exits(hits, entry_d, exit_d, entry_pts, exit_pts,
+                          gamma, beta, mass, origin,
+                          lifetime_seconds=None,
+                          n_samples=10, rng_seed=42):
+    """
+    Monte Carlo sample two-body decays and trace e+/e- to the tunnel wall.
+
+    For each LLP that hits the fiducial volume:
+      1. Sample decay positions (uniform or exponential)
+      2. Sample rest-frame angles isotropically
+      3. Boost daughters to lab frame, apply momentum cut
+      4. Batch ray-cast daughters to find wall intersections
+      5. Apply separation cuts on pairs
+
+    Returns (exit_points, weights) for valid daughter hits.
+    """
+    M_ELECTRON = 0.000511
+    rng = np.random.default_rng(rng_seed)
+    hit_indices = np.where(hits)[0]
+
+    all_origins = []
+    all_directions = []
+    all_weights = []
+
+    for idx in hit_indices:
+        d_entry = entry_d[idx]
+        d_exit = exit_d[idx]
+        g = gamma[idx]; b = beta[idx]; m = mass[idx]
+        path_len = d_exit - d_entry
+
+        llp_dir = exit_pts[idx] - entry_pts[idx]
+        llp_dist = np.linalg.norm(llp_dir)
+        if llp_dist < 1e-10:
+            continue
+        z_hat = llp_dir / llp_dist
+
+        # Local transverse frame
+        if abs(z_hat[1]) < 0.9:
+            up = np.array([0., 1., 0.])
+        else:
+            up = np.array([1., 0., 0.])
+        x_hat = np.cross(z_hat, up)
+        x_hat /= np.linalg.norm(x_hat)
+        y_hat = np.cross(z_hat, x_hat)
+
+        p_star = np.sqrt(max(m**2 / 4 - M_ELECTRON**2, 0))
+        E_star = m / 2
+
+        # Sample decay positions
+        if lifetime_seconds is not None:
+            decay_length = g * b * 299792458.0 * lifetime_seconds
+            exp_entry = np.exp(-d_entry / decay_length)
+            exp_exit = np.exp(-d_exit / decay_length)
+            denom = exp_entry - exp_exit
+            if denom < 1e-300:
+                continue
+            u = rng.uniform(0, 1, n_samples)
+            d_decay = -decay_length * np.log(exp_entry - u * denom)
+            w = denom / n_samples
+        else:
+            d_decay = rng.uniform(d_entry, d_exit, n_samples)
+            w = path_len / n_samples
+
+        cos_theta = rng.uniform(-1, 1, n_samples)
+        phi = rng.uniform(0, 2 * np.pi, n_samples)
+        sin_theta = np.sqrt(1 - cos_theta**2)
+
+        for i in range(n_samples):
+            decay_pos = origin + d_decay[i] * z_hat
+            ct = cos_theta[i]; st = sin_theta[i]
+            cp = np.cos(phi[i]); sp = np.sin(phi[i])
+
+            # Compute both daughter momenta and check E_CUT
+            daughters_ok = True
+            d_dirs = []
+            for sign in [1, -1]:
+                p_par = g * (sign * p_star * ct + b * E_star)
+                p_px = sign * p_star * st * cp
+                p_py = sign * p_star * st * sp
+                p_vec = p_par * z_hat + p_px * x_hat + p_py * y_hat
+                p_mag = np.linalg.norm(p_vec)
+                if p_mag < E_CUT:
+                    daughters_ok = False
+                    break
+                d_dirs.append(p_vec / p_mag)
+
+            if not daughters_ok:
+                continue
+
+            for d_dir in d_dirs:
+                all_origins.append(decay_pos)
+                all_directions.append(d_dir)
+                all_weights.append(w)
+
+    if not all_origins:
+        return np.array([]).reshape(0, 3), np.array([])
+
+    all_origins = np.array(all_origins)
+    all_directions = np.array(all_directions)
+    all_weights = np.array(all_weights)
+    n_rays = len(all_origins)
+    n_pairs = n_rays // 2
+
+    print(f"  Tracing {n_rays} daughter rays ({n_pairs} pairs)...")
+
+    # Batch ray-cast
+    locations, ray_idx, _ = mesh_fiducial.ray.intersects_location(
+        ray_origins=all_origins, ray_directions=all_directions)
+
+    if len(locations) == 0:
+        return np.array([]).reshape(0, 3), np.array([])
+
+    # Find closest forward intersection per ray
+    diffs = locations - all_origins[ray_idx]
+    dists = np.sum(diffs * all_directions[ray_idx], axis=1)
+    forward = dists > 1e-6
+    locations = locations[forward]
+    ray_idx = ray_idx[forward]
+    dists = dists[forward]
+
+    sort_order = np.lexsort((dists, ray_idx))
+    locations = locations[sort_order]
+    ray_idx = ray_idx[sort_order]
+    _, first = np.unique(ray_idx, return_index=True)
+
+    exit_pts_all = np.full((n_rays, 3), np.nan)
+    exit_pts_all[ray_idx[first]] = locations[first]
+
+    # Reshape by pairs: rays [2k, 2k+1] are from the same decay
+    exit_pair = exit_pts_all.reshape(n_pairs, 2, 3)
+    weight_pair = all_weights.reshape(n_pairs, 2)
+
+    # Both daughters must hit the wall
+    both_hit = ~np.isnan(exit_pair[:, 0, 0]) & ~np.isnan(exit_pair[:, 1, 0])
+
+    # Separation cut
+    sep = np.full(n_pairs, np.nan)
+    sep[both_hit] = np.linalg.norm(
+        exit_pair[both_hit, 0] - exit_pair[both_hit, 1], axis=1)
+    sep_ok = both_hit & (sep >= SEP_MIN) & (sep <= SEP_MAX)
+
+    valid_exits = exit_pair[sep_ok].reshape(-1, 3)
+    valid_weights = weight_pair[sep_ok].reshape(-1)
+
+    n_valid = sep_ok.sum()
+    print(f"  Valid pairs: {n_valid} / {n_pairs} "
+          f"({n_valid/n_pairs*100:.1f}%)")
+    if both_hit.sum() > 0:
+        median_sep = np.nanmedian(sep[both_hit])
+        print(f"  Median pair separation: {median_sep*100:.1f} cm")
+
+    return valid_exits, valid_weights
+
+
+# =============================================================================
 # Main analysis
 # =============================================================================
 def run_analysis(csv_file, lifetime_seconds=None, outdir="output"):
@@ -385,51 +545,56 @@ def run_analysis(csv_file, lifetime_seconds=None, outdir="output"):
     path_l = exit_d[hits] - entry_d[hits]
     print(f"  Mean path length: {path_l.mean():.2f} m")
 
-    # --- Weights ---
-    momentum = df['momentum'].values
-    mass = df['mass'].values
-    energy = np.sqrt(momentum**2 + mass**2)
-    gamma = energy / mass
-    beta = momentum / energy
+    # --- Kinematics ---
+    momentum_arr = df['momentum'].values
+    mass_arr = df['mass'].values
+    energy = np.sqrt(momentum_arr**2 + mass_arr**2)
+    gamma = energy / mass_arr
+    beta = momentum_arr / energy
+
+    # --- Sample daughter exits ---
+    print("\nSampling two-body decay products...")
+    daughter_exits, daughter_weights = sample_daughter_exits(
+        hits, entry_d, exit_d, entry_pts, exit_pts,
+        gamma, beta, mass_arr, origin,
+        lifetime_seconds=lifetime_seconds)
+
+    if len(daughter_exits) == 0:
+        print("No valid daughter exits. Exiting.")
+        return
 
     if lifetime_seconds is not None:
-        print(f"\nDecay probabilities (tau = {lifetime_seconds:.2e} s)...")
-        decay_prob = np.zeros(n)
-        hit_mask = np.where(hits)[0]
-        g = gamma[hit_mask]; b = beta[hit_mask]
-        lam = g * b * 299792458.0 * lifetime_seconds
-        d_en = entry_d[hit_mask]; d_ex = exit_d[hit_mask]
-        # Closed-form: P = exp(-d_entry/lambda) - exp(-d_exit/lambda)
-        decay_prob[hit_mask] = np.exp(-d_en / lam) - np.exp(-d_ex / lam)
-        weights = decay_prob[hits]
         weight_label = f'Decay prob (tau={lifetime_seconds:.1e}s)'
     else:
-        print("\n  No lifetime given -- using path-length weighting (long-lifetime proxy)")
-        weights = path_l.copy()
-        weight_label = 'Path length weight (no lifetime)'
+        weight_label = 'Path length weight (daughter MC)'
 
-    if weights.sum() == 0:
-        print("All weights are zero. Exiting.")
-        return
-    weights_norm = weights / weights.sum()
+    # Exit weights from daughter MC
+    weights_norm = daughter_weights / daughter_weights.sum()
 
-    # --- Classify exit & entry points ---
+    # Entry weights (per LLP, path-length weighted)
+    entry_weights = path_l.copy()
+    entry_weights_norm = entry_weights / entry_weights.sum()
+
+    # --- Classify daughter exit points ---
     print("\nClassifying surface points...")
-    hit_indices = np.where(hits)[0]
+    n_daughter = len(daughter_exits)
 
-    exit_s     = np.zeros(n_hits)
-    exit_theta = np.zeros(n_hits)
-    exit_xl    = np.zeros(n_hits)
-    exit_yl    = np.zeros(n_hits)
+    exit_s     = np.zeros(n_daughter)
+    exit_theta = np.zeros(n_daughter)
+    exit_xl    = np.zeros(n_daughter)
+    exit_yl    = np.zeros(n_daughter)
+
+    for i in tqdm(range(n_daughter), desc="Daughter exit points"):
+        s, th, xl, yl = classify_exit_point(daughter_exits[i], path_3d, cumulative_length)
+        exit_s[i] = s; exit_theta[i] = th; exit_xl[i] = xl; exit_yl[i] = yl
+
+    # --- Classify LLP entry points ---
+    hit_indices = np.where(hits)[0]
 
     entry_s     = np.zeros(n_hits)
     entry_theta = np.zeros(n_hits)
     entry_xl    = np.zeros(n_hits)
     entry_yl    = np.zeros(n_hits)
-
-    for i, idx in enumerate(tqdm(hit_indices, desc="Exit points")):
-        s, th, xl, yl = classify_exit_point(exit_pts[idx], path_3d, cumulative_length)
-        exit_s[i] = s; exit_theta[i] = th; exit_xl[i] = xl; exit_yl[i] = yl
 
     for i, idx in enumerate(tqdm(hit_indices, desc="Entry points")):
         s, th, xl, yl = classify_exit_point(entry_pts[idx], path_3d, cumulative_length)
@@ -447,7 +612,7 @@ def run_analysis(csv_file, lifetime_seconds=None, outdir="output"):
         en_mask = entry_surface == surf
         print(f"{surf:<16} {ex_mask.sum():>8} "
               f"{weights_norm[ex_mask].sum()*100:>7.1f}% "
-              f"{weights_norm[en_mask].sum()*100:>8.1f}%")
+              f"{entry_weights_norm[en_mask].sum()*100:>8.1f}%")
 
     # --- Contiguous angular efficiency ---
     print(f"\n{'='*60}")
@@ -538,7 +703,7 @@ def run_analysis(csv_file, lifetime_seconds=None, outdir="output"):
 
     exit_hist = adapt_hist  # already computed
     entry_hist, _, _ = np.histogram2d(
-        entry_s, entry_theta, bins=[s_edges, theta_edges_2d], weights=weights_norm)
+        entry_s, entry_theta, bins=[s_edges, theta_edges_2d], weights=entry_weights_norm)
 
     # =================================================================
     # Plotting
@@ -727,7 +892,7 @@ def run_analysis(csv_file, lifetime_seconds=None, outdir="output"):
     # ---- Panel 5: Signal fraction by surface ----
     ax = fig.add_subplot(gs[3, 1])
     fracs_exit = [weights_norm[exit_surface == s].sum() * 100 for s in surfaces]
-    fracs_entry = [weights_norm[entry_surface == s].sum() * 100 for s in surfaces]
+    fracs_entry = [entry_weights_norm[entry_surface == s].sum() * 100 for s in surfaces]
     x_pos = np.arange(len(surfaces))
     w = 0.35
     colors = ['#8B4513', '#228B22', '#FFD700', '#4169E1']
@@ -755,7 +920,7 @@ def run_analysis(csv_file, lifetime_seconds=None, outdir="output"):
     exit_density, _ = np.histogram(exit_theta, bins=band_edges,
                                     weights=weights_norm)
     entry_density, _ = np.histogram(entry_theta, bins=band_edges,
-                                     weights=weights_norm)
+                                     weights=entry_weights_norm)
 
     # Use the SAME profile as the tunnel outline to guarantee shape match
     prof_wall = tunnel_profile_points(inset=0.0)
@@ -878,7 +1043,7 @@ def run_analysis(csv_file, lifetime_seconds=None, outdir="output"):
            label='Signal exit')
     # Entry distribution
     entry_sector, _ = np.histogram(entry_theta, bins=sector_edges,
-                                    weights=weights_norm)
+                                    weights=entry_weights_norm)
     ax.bar(sector_centers_deg, entry_sector * 100,
            width=360/n_sectors * 0.9, color='blue', alpha=0.2,
            label='LLP entry')

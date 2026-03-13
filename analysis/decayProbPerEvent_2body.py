@@ -44,7 +44,7 @@ M_DAUGHTER = 0.10566  # GeV/c^2 (muon mass)
 # Analysis cuts
 P_CUT   = 0.600    # GeV/c -- minimum daughter momentum
 SEP_MIN = 0.001    # m -- minimum separation at detector (1 mm)
-SEP_MAX = 1.0      # m -- maximum separation at detector
+SEP_MAX = 10.      # m -- maximum separation at detector
 
 # Default lifetime scan range (extended for full U-curve)
 DEFAULT_LIFETIME_MIN_NS = 10**-2
