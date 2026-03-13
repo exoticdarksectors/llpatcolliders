@@ -28,23 +28,22 @@ from utils import infer_sample_mass, overlay_mass_matched_external_curves, exclu
 
 import numpy as np
 import pandas as pd
-import matplotlib
-matplotlib.use('Agg')
-import matplotlib.pyplot as plt
 from tqdm import tqdm
 from scipy.integrate import quad
 from gargoyle_geometry import (
     SPEED_OF_LIGHT,
     calculate_decay_length, cache_geometry,
-    mesh_fiducial,
+    get_fiducial_mesh,
 )
+from detector_cuts import P_CUT, SEP_MIN, SEP_MAX
 
 M_DAUGHTER = 0.10566  # GeV/c^2 (muon mass)
 
-# Analysis cuts
-P_CUT   = 0.600    # GeV/c -- minimum daughter momentum
-SEP_MIN = 0.001    # m -- minimum separation at detector (1 mm)
-SEP_MAX = 1.0      # m -- maximum separation at detector
+# WARNING: This analysis assumes stable, point-like charged-track daughters.
+# It is ONLY valid for a -> e+e- or a -> mu+mu-. For a -> tau+tau-, the taus
+# decay further into multi-body final states, invalidating the 2-body opening
+# angle formula. Use decayProbPerEvent_Ntrack.py (or the hnl_alaship 3D MC
+# pipeline) for tau or any multi-body final state.
 
 # Default lifetime scan range (extended for full U-curve)
 DEFAULT_LIFETIME_MIN_NS = 10**-2
@@ -223,14 +222,15 @@ def process_with_acceptance(csv_file_or_df, lifetime_seconds, geo_cache,
 
     event_stats = []
     for event_idx, group in df.groupby('event'):
-        n_part = len(group)
-        p1 = group.iloc[0]['decay_probability'] if n_part >= 1 else 0
-        p2 = group.iloc[1]['decay_probability'] if n_part >= 2 else 0
-        p1_nc = group.iloc[0]['decay_probability_no_cuts'] if n_part >= 1 else 0
-        p2_nc = group.iloc[1]['decay_probability_no_cuts'] if n_part >= 2 else 0
+        probs = group['decay_probability'].values
+        probs_nc = group['decay_probability_no_cuts'].values
 
-        p_at_least_one = 1 - (1 - p1) * (1 - p2)
-        p_at_least_one_nc = 1 - (1 - p1_nc) * (1 - p2_nc)
+        # P(at least one) = 1 - product(1 - p_i) for all LLPs in event
+        p_at_least_one = 1.0 - np.prod(1.0 - probs)
+        p_at_least_one_nc = 1.0 - np.prod(1.0 - probs_nc)
+
+        p1 = probs[0] if len(probs) >= 1 else 0.0
+        p2 = probs[1] if len(probs) >= 2 else 0.0
 
         event_stats.append({
             'event': event_idx,
@@ -422,6 +422,10 @@ if __name__ == "__main__":
                              f"(default: {DEFAULT_LIFETIME_POINTS})")
     args = parser.parse_args()
 
+    import matplotlib
+    matplotlib.use('Agg')
+    import matplotlib.pyplot as plt
+
     if args.xsec is None:
         print("ERROR: --xsec is required. Example values:")
         print("  Heavy ALP (gg->h, 14 TeV):      --xsec 54700")
@@ -470,6 +474,7 @@ if __name__ == "__main__":
     exclusion_plot_name = f"exclusion_2body_{output_tag}.png"
     origin = [0, 0, 0]
 
+    mesh_fiducial, _ = get_fiducial_mesh()
     geo_cache = cache_geometry(sample_csv, mesh_fiducial, origin)
 
     # --- Single lifetime for separation histogram ---

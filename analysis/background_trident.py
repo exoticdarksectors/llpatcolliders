@@ -43,7 +43,7 @@ from tqdm import tqdm
 
 from gargoyle_geometry import (
     TUNNEL_GAMMA, DETECTOR_THICKNESS,
-    mesh_fiducial, path_3d_fiducial,
+    get_fiducial_mesh,
     eta_phi_to_direction,
 )
 
@@ -572,8 +572,7 @@ def main():
     img_dir = os.path.join(args.outdir, 'images')
     os.makedirs(img_dir, exist_ok=True)
 
-    mesh = mesh_fiducial
-    path_3d = path_3d_fiducial
+    mesh, path_3d = get_fiducial_mesh()
     origin = np.array([0, 0, 0])
 
     mc = TunnelBackgroundMC(mesh, path_3d, origin, seed=args.seed)

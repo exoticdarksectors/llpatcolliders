@@ -12,11 +12,12 @@ analysis/           Shared analysis scripts (decay probability, surface hitmap)
 higgs/              Higgs portal: h -> SS (dark scalar)
 alps/               ALP portal: h -> aa (heavy) and B -> K(*)a (light)
 dark_photon/        Dark photon: h -> A'A' (R-ratio BRs)
-hnl/                HNL portal: heavy neutral leptons (FONLL + MadGraph)
+hnl_alaship/        HNL portal: FairShip backend (full 3D boost, all 3 flavors) [ACTIVE]
+hnl_legacy/         HNL portal: original z-boost pipeline (superseded, kept for reference)
 FCC/                FCC detector studies (notebooks)
 ```
 
-Each model directory contains comparison curves in `external/` and a `README.md` with run instructions. Higgs/ALP/dark photon use the shared Pythia8 generator (`cmnd/` configs). HNL uses its own FONLL-based production pipeline.
+Each model directory contains comparison curves in `external/` and a `README.md` with run instructions. Higgs/ALP/dark photon use the shared Pythia8 generator (`cmnd/` configs). The active HNL pipeline is `hnl_alaship/` (FairShip-based, full 3D Lorentz boost, all three flavors Ue/Umu/Utau). The original z-boost pipeline is preserved in `hnl_legacy/` for reference.
 
 ## Quick Start
 
@@ -36,18 +37,23 @@ python analysis/signal_surface_hitmap.py output/alps/data/alp_heavy_m15.csv \
     --outdir output/alps
 ```
 
-### HNL Portal (FONLL)
+### HNL Portal (FairShip / hnl_alaship)
+
+Uses FairShip hnl.py for decay widths/lifetime, TPythia8 for rest-frame decay
+templates, and a full 3D Lorentz boost for daughter acceptance. Supports all
+three flavors (Ue, Umu, Utau). Requires the `llpatcolliders` conda env with ROOT.
 
 ```bash
-# 1. Generate meson -> HNL 4-vectors
-python hnl/production/decay_engine/generate_meson_csvs.py --channel Bmeson --flavor Ue --masses 1.0
-
-# 2. Combine channels and run sensitivity
-python hnl/production/combine_channels.py --flavor Ue --masses 1.0
-python hnl/analysis/run_sensitivity.py --flavor Ue --mass 1.0
+cd hnl_alaship
+conda run -n llpatcolliders python production/decay_engine/generate_meson_csvs.py --flavor Ue Umu Utau --channel all
+conda run -n llpatcolliders python production/madgraph/run_tau_production.py --flavor Ue Umu Utau
+conda run -n llpatcolliders python production/madgraph/run_wz_production.py --flavor Ue Umu Utau
+conda run -n llpatcolliders python production/combine_channels.py --flavor Ue Umu Utau
+conda run -n llpatcolliders python production/generate_ctau_tables.py --flavor Ue Umu Utau
+conda run -n llpatcolliders python analysis/run_sensitivity.py --flavor Ue Umu Utau
 ```
 
-See `hnl/README.md` for full instructions including tau and W/Z channels.
+See `hnl_alaship/HOWTO_RUN.md` for details.
 
 ## Analysis Scripts
 
@@ -57,6 +63,20 @@ See `hnl/README.md` for full instructions including tau and W/Z channels.
 | `decayProbPerEvent_Ntrack.py` | N-track daughter pairing | Multi-body decay (dark photon) |
 | `signal_surface_hitmap.py` | Surface coverage optimization | Any model |
 | `background_trident.py` | Beam muon trident background MC | Any model |
+
+## Acceptance Models
+
+Three distinct acceptance approaches are used across portals (must be documented
+in the paper as a systematic):
+
+| Model | Script | Portals | Method | Limitation |
+|-------|--------|---------|--------|------------|
+| Analytic 2-body | `decayProbPerEvent_2body.py` | Higgs, ALPs | Boost-invariant opening angle formula (massless daughters) | Only valid for stable 2-body final states (e+e-, mu+mu-). **Not valid for tau+tau-.** |
+| N-track | `decayProbPerEvent_Ntrack.py` | Dark photon | Daughter-pair opening angles from generator output | Approximates detector as flat plane at fixed distance. No per-daughter ray-cast. |
+| Full 3D MC | `hnl_alaship/analysis/` | HNL | Full 3D Lorentz boost + per-daughter ray-cast to mesh | Most accurate. 15-30% tighter exclusion than z-boost above m > 1.5 GeV. |
+
+Cross-validation at shared mass points between models is recommended before
+publication.
 
 ## Adding a New Model
 

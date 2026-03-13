@@ -108,39 +108,20 @@ def table_summary(bi):
     }
 
 
-# ── perturbative BRs (mirrors make_dp_cmnd._perturbative_brs) ─────────────────
+# ── perturbative BRs (canonical implementation in dp_meson_brs.py) ────────────
+sys.path.insert(0, str(HERE))
+from dp_meson_brs import perturbative_brs as _perturbative_brs_raw
+
+
 def _perturbative_brs(mass):
-    nf     = 3 + (mass > 2 * 1.27) + (mass > 2 * 4.18)
-    Lambda = 0.2
-    als    = 12 * math.pi / ((33 - 2 * nf) * math.log((mass / Lambda) ** 2))
-    als    = min(als, 0.4)
-
-    n_uu = 1 + (mass > 2 * 1.27)          # u + (c)
-    n_dd = 2 + (mass > 2 * 4.18)          # d + s + (b)
-    R    = 3 * (n_uu * (2/3)**2 + n_dd * (1/3)**2) * (1 + als / math.pi)
-
-    total = 3.0 + R
-    qcd   = 1 + als / math.pi
-
-    lep = {}
-    for col, thresh in [("ee", 0.0), ("mumu", 2*M_MU), ("tau", 2*M_TAU)]:
-        lep[col] = (1.0 / total) if mass > thresh else 0.0
-
-    had = {}
-    for flavor, q2, thresh in [
-        ("uu", (2/3)**2, 0.0),
-        ("dd", (1/3)**2, 0.0),
-        ("ss", (1/3)**2, 0.0),
-        ("cc", (2/3)**2, 2 * 1.27),
-        ("bb", (1/3)**2, 2 * 4.18),
-    ]:
-        had[flavor] = (3 * q2 * qcd / total) if mass > thresh else 0.0
-
+    """Wrapper adding aggregate 'lep' and 'had' keys for validation."""
+    raw = _perturbative_brs_raw(mass)
+    lep_sum = raw.get("ee", 0.0) + raw.get("mumu", 0.0) + raw.get("tau", 0.0)
+    had_sum = sum(v for k, v in raw.items() if k.endswith("_q"))
     return {
-        **lep,
-        **had,
-        "lep": sum(lep.values()),
-        "had": sum(had.values()),
+        **raw,
+        "lep": lep_sum,
+        "had": had_sum,
     }
 
 

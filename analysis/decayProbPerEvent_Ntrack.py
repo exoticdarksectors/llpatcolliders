@@ -27,23 +27,17 @@ from utils import infer_sample_mass, overlay_mass_matched_external_curves, exclu
 
 import numpy as np
 import pandas as pd
-import matplotlib
-matplotlib.use('Agg')
-import matplotlib.pyplot as plt
 from tqdm import tqdm
 
 from gargoyle_geometry import (
     SPEED_OF_LIGHT,
     calculate_decay_length,
     cache_geometry,
-    mesh_fiducial,
+    get_fiducial_mesh,
 )
+from detector_cuts import P_CUT, SEP_MIN, SEP_MAX
 
-# Analysis cuts
-P_CUT = 0.600          # GeV/c — minimum daughter momentum
 N_MIN_TRACKS = 2       # minimum charged daughters to form candidate pairs
-SEP_MIN = 0.001        # m — minimum separation at detector (1 mm)
-SEP_MAX = 1.0          # m — maximum separation at detector (1 m)
 HIST_LIFETIME_NS = 1000.0  # ns — default lifetime for separation histogram
 DEFAULT_LIFETIME_MIN_NS = 10**-2
 DEFAULT_LIFETIME_MAX_NS = 10**5.5
@@ -594,6 +588,10 @@ if __name__ == "__main__":
                         help="path to external/ comparison curves (default: none)")
     args = parser.parse_args()
 
+    import matplotlib
+    matplotlib.use('Agg')
+    import matplotlib.pyplot as plt
+
     if args.production in ("meson", "drell_yan"):
         if args.dp_mass is None:
             print(f"ERROR: --dp-mass required for --production {args.production}")
@@ -662,6 +660,7 @@ if __name__ == "__main__":
         print(f"WARNING: no _meta.json found ({meta_path}).")
 
     origin = [0, 0, 0]
+    mesh_fiducial, _ = get_fiducial_mesh()
     geo_cache = cache_geometry(sample_csv, mesh_fiducial, origin)
     sample_mass = infer_sample_mass(geo_cache['mass'])
     if sample_mass is not None:

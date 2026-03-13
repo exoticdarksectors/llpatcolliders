@@ -177,6 +177,87 @@ def eta_phi_to_direction(eta, phi):
     return np.array([dx, dy, dz])
 
 
+def momenta_to_directions(momentum_vectors):
+    """
+    Convert an ``(N, 3)`` array of momentum vectors to unit directions.
+
+    Returns
+    -------
+    directions : ndarray, shape (N, 3)
+    valid : ndarray, shape (N,)
+        False for zero-momentum rows.
+    """
+    momenta = np.asarray(momentum_vectors, dtype=np.float64)
+    if momenta.ndim != 2 or momenta.shape[1] != 3:
+        raise ValueError("momentum_vectors must have shape (N, 3)")
+
+    norms = np.linalg.norm(momenta, axis=1)
+    directions = np.zeros_like(momenta)
+    valid = norms > 0.0
+    directions[valid] = momenta[valid] / norms[valid, None]
+    return directions, valid
+
+
+def ray_intersection_distances(mesh, ray_origins, ray_directions, eps=1e-9):
+    """
+    Ray-cast a batch of rays against ``mesh`` and return positive distances.
+
+    Parameters
+    ----------
+    mesh : trimesh.Trimesh
+    ray_origins : ndarray, shape (N, 3)
+    ray_directions : ndarray, shape (N, 3)
+    eps : float
+        Positive-distance threshold used to reject self-intersections.
+
+    Returns
+    -------
+    hits : ndarray, shape (N,)
+    first_d : ndarray, shape (N,)
+    second_d : ndarray, shape (N,)
+    """
+    origins = np.asarray(ray_origins, dtype=np.float64)
+    directions = np.asarray(ray_directions, dtype=np.float64)
+    if origins.shape != directions.shape or origins.ndim != 2 or origins.shape[1] != 3:
+        raise ValueError("ray_origins and ray_directions must both have shape (N, 3)")
+
+    n_rays = len(origins)
+    hits = np.zeros(n_rays, dtype=bool)
+    first_d = np.full(n_rays, np.nan)
+    second_d = np.full(n_rays, np.nan)
+
+    if n_rays == 0:
+        return hits, first_d, second_d
+
+    locations, ray_ids, _ = mesh.ray.intersects_location(
+        ray_origins=origins,
+        ray_directions=directions,
+    )
+    if len(locations) == 0:
+        return hits, first_d, second_d
+
+    distances = np.linalg.norm(locations - origins[ray_ids], axis=1)
+    positive = distances > eps
+    if not np.any(positive):
+        return hits, first_d, second_d
+
+    distances = distances[positive]
+    ray_ids = ray_ids[positive]
+    order = np.argsort(ray_ids)
+    distances = distances[order]
+    ray_ids = ray_ids[order]
+
+    unique_ids, start_idx, counts = np.unique(ray_ids, return_index=True, return_counts=True)
+    for ray_id, start, count in zip(unique_ids, start_idx, counts, strict=False):
+        ray_distances = np.sort(distances[start:start + count])
+        hits[ray_id] = True
+        first_d[ray_id] = ray_distances[0]
+        if len(ray_distances) > 1:
+            second_d[ray_id] = ray_distances[1]
+
+    return hits, first_d, second_d
+
+
 def calculate_decay_length(momentum, mass, lifetime):
     """Compute lab-frame decay length βγcτ (metres)."""
     energy = np.sqrt(momentum**2 + mass**2)
@@ -347,5 +428,23 @@ def build_fiducial_mesh(y_position=Y_POSITION,
     return mesh, path_3d
 
 
-# Convenience: build the default mesh on import
-mesh_fiducial, path_3d_fiducial = build_fiducial_mesh()
+_mesh_cache = {}
+
+
+def get_fiducial_mesh():
+    """Return (mesh, path_3d), building on first call."""
+    if "mesh" not in _mesh_cache:
+        _mesh_cache["mesh"], _mesh_cache["path"] = build_fiducial_mesh()
+    return _mesh_cache["mesh"], _mesh_cache["path"]
+
+
+def __getattr__(name):
+    if name == "mesh_fiducial":
+        mesh, _ = get_fiducial_mesh()
+        globals()["mesh_fiducial"] = mesh
+        return mesh
+    if name == "path_3d_fiducial":
+        _, path = get_fiducial_mesh()
+        globals()["path_3d_fiducial"] = path
+        return path
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
