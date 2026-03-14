@@ -12,12 +12,11 @@ analysis/           Shared analysis scripts (decay probability, surface hitmap)
 higgs/              Higgs portal: h -> SS (dark scalar)
 alps/               ALP portal: h -> aa (heavy) and B -> K(*)a (light)
 dark_photon/        Dark photon: h -> A'A' (R-ratio BRs)
-hnl_alaship/        HNL portal: FairShip backend (full 3D boost, all 3 flavors) [ACTIVE]
-hnl_legacy/         HNL portal: original z-boost pipeline (superseded, kept for reference)
+hnl_alaship/        HNL portal: FairShip backend (full 3D boost, all 3 flavors)
 FCC/                FCC detector studies (notebooks)
 ```
 
-Each model directory contains comparison curves in `external/` and a `README.md` with run instructions. Higgs/ALP/dark photon use the shared Pythia8 generator (`cmnd/` configs). The active HNL pipeline is `hnl_alaship/` (FairShip-based, full 3D Lorentz boost, all three flavors Ue/Umu/Utau). The original z-boost pipeline is preserved in `hnl_legacy/` for reference.
+Each model directory contains comparison curves in `external/` and a `README.md` with run instructions. Higgs/ALP/dark photon use the shared Pythia8 generator (`cmnd/` configs). The HNL pipeline (`hnl_alaship/`) uses FairShip-based full 3D Lorentz boost for all three flavors Ue/Umu/Utau. The older z-boost pipeline has been removed (superseded by `hnl_alaship/`).
 
 ## Quick Start
 
@@ -77,6 +76,24 @@ in the paper as a systematic):
 
 Cross-validation at shared mass points between models is recommended before
 publication.
+
+## PDG ID Registry
+
+| PDG ID | Particle | Used in |
+|--------|----------|---------|
+| `6000113` | Dark scalar S / heavy ALP a | `higgs/`, `alps/` (shared, never run simultaneously) |
+| `6000115` | Dark photon A' | `dark_photon/` |
+| `9000001` | Light ALP a (B→Ka) | `alps/` (light ALP cmnd) |
+| `9900015` | HNL N | `hnl_alaship/` |
+
+## Environment Setup
+
+```bash
+# Create the conda environment (includes ROOT for HNL pipeline)
+conda env create -f environment.yml
+# or activate if it already exists
+conda activate llpatcolliders
+```
 
 ## Adding a New Model
 

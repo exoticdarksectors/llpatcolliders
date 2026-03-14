@@ -42,8 +42,6 @@ CLAUDE.md
 
 # MadGraph build artifacts (regenerable)
 hnl_alaship/production/madgraph/work/
-hnl/production/madgraph/work/
-hnl_legacy/production/madgraph/work/
 
 # MadGraph PLY parser cache
 **/py.py

@@ -36,14 +36,7 @@ HERE = Path(__file__).parent
 DEFAULT_BR_TABLE = HERE / "br_tables" / "dp_brs_deliver.csv"
 
 # Particle thresholds (GeV): channel is kinematically open only above 2*m_daughter
-M_PI  = 0.13957   # charged pion
-M_PI0 = 0.13498   # neutral pion
-M_MU  = 0.10566   # muon
-M_TAU = 1.77686   # tau
-M_K   = 0.49368   # charged kaon
-M_K0  = 0.49765   # neutral kaon
-M_ETA = 0.54785   # eta
-M_P   = 0.93827   # proton
+from constants import M_PI, M_PI0, M_MU, M_TAU, M_K, M_K0, M_ETA, M_P
 
 # Decay channel mapping: (csv_column, [Pythia8 PDG IDs], threshold_GeV, comment)
 # Channels whose BR falls below MIN_BR are merged into pi+pi-.

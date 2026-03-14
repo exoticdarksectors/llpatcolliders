@@ -6,7 +6,8 @@
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PYTHIA="${PYTHIA8_DIR:-$(cd "${SCRIPT_DIR}/../../../pythia8315" 2>/dev/null && pwd || echo /usr/local)}"
 
-g++ "${SCRIPT_DIR}/generator.cc" -o "${SCRIPT_DIR}/generator" -w \
+g++ "${SCRIPT_DIR}/generator.cc" -o "${SCRIPT_DIR}/generator" \
+  -Wall -Wextra -Wno-unused-parameter -Wno-sign-compare \
   -I${PYTHIA}/include \
   -O2 -std=c++17 -fPIC -pthread \
   -L${PYTHIA}/lib -Wl,-rpath,${PYTHIA}/lib \

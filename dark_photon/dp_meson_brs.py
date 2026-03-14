@@ -33,12 +33,7 @@ HBAR_C_GEV_MM = HBAR_C_GEV_M * 1e3  # ℏc in GeV·mm
 # ---------------------------------------------------------------------------
 # Particle masses (GeV) — PDG 2024
 # ---------------------------------------------------------------------------
-M_EL   = 0.000511      # electron
-M_MU   = 0.10566       # muon
-M_PI   = 0.13957       # charged pion
-M_PI0  = 0.13498       # neutral pion
-M_ETA  = 0.54785       # η meson
-M_OMEGA = 0.78266      # ω meson
+from constants import M_EL, M_MU, M_PI, M_PI0, M_ETA, M_OMEGA
 
 # ---------------------------------------------------------------------------
 # PDG branching ratios

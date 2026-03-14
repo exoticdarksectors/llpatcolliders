@@ -1,5 +1,7 @@
 ! Command file: heavy ALP production via exotic Higgs decay  h -> a a
 ! ALP = Axion-Like Particle (pseudoscalar, spin-0, neutral, uncoloured)
+! PDG 6000113 is shared with dark scalar (higgs/cmnd/higgs_h_to_ss.cmnd);
+! never run simultaneously.
 ! Regime: few GeV to ~60 GeV  (Higgs portal coupling)
 ! To scan ALP mass: change 6000113:m0 below.
 ! To scan lifetime: change 6000113:tau0 (in mm).
@@ -17,10 +19,8 @@ HiggsSM:all = on
 25:mMin = 125
 25:mWidth = 0.004                  ! SM-like narrow width
 
-! Add exotic decay  h -> a a  (BR set to 1; rescale yield in analysis)
-25:addChannel = 1 0.0 0 6000113 6000113
-25:76:bRatio  = 1.0                ! 100 % -> ALP pair (placeholder; rescale)
-25:76:meMode  = 100                ! generic 2-body phase space
+! Add exotic decay  h -> a a  (BR=1; rescale yield in analysis; meMode=100 = phase space)
+25:addChannel = 1 1.0 100 6000113 6000113
 25:onIfAny    = 6000113            ! keep event only if an ALP is present
 
 ! ---- 3) ALP particle definition ----------------------------------------

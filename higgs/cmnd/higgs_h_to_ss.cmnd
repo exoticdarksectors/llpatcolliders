@@ -1,4 +1,6 @@
 ! Higgs portal: h -> SS (dark scalar, PDG 6000113, m_S = 15 GeV)
+! PDG 6000113 is shared with heavy ALP (alps/cmnd/heavy_alp.cmnd);
+! never run simultaneously.
 !
 ! Production: gg -> h (all SM Higgs channels), BR(h->SS) = 1
 ! Decay: S -> b bbar (change oneChannel below for other finals)
@@ -12,9 +14,7 @@ Beams:eCM = 14000.                   ! HL-LHC CM energy (GeV)
 HiggsSM:all = on
 25:onMode = off
 25:m0 = 125
-25:addChannel = 1 0.0 0 6000113 -6000113
-25:76:bRatio = 1.0
-25:76:meMode = 100
+25:addChannel = 1 1.0 100 6000113 -6000113
 25:onIfAny = 6000113
 25:mMin = 125
 25:mWidth = 0.004                  ! SM-like narrow width

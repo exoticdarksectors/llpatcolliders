@@ -47,10 +47,7 @@ OUTPUT_IMGS = HERE.parent / "output" / "images"
 BR_TABLE    = HERE / "br_tables" / "dp_brs_deliver.csv"
 
 # ── physics constants ──────────────────────────────────────────────────────────
-M_MU  = 0.10566
-M_TAU = 1.77686
-M_K   = 0.49368
-M_PI  = 0.13957
+from constants import M_MU, M_TAU, M_K, M_PI
 
 # ── validation configuration ──────────────────────────────────────────────────
 # Points that ARE in the 25-point CSV grid (must agree to <1%)
@@ -127,7 +124,11 @@ def _perturbative_brs(mass):
 
 # ── DeLiVeR direct runner ─────────────────────────────────────────────────────
 def _patch_deliver(src_dir, dst_dir):
-    """Copy DeLiVeR to a temp dir and apply scipy >= 1.14 compat patch."""
+    """Copy DeLiVeR to a temp dir and apply scipy >= 1.14 compat patch.
+
+    TODO: remove once DeLiVeR updates upstream (scipy.integrate.quadrature
+    was removed in scipy 1.14; this patches it to use quad instead).
+    """
     shutil.copytree(src_dir, dst_dir, dirs_exist_ok=True)
     ff_dir = os.path.join(dst_dir, "src", "form_factors")
     for fname in os.listdir(ff_dir):
