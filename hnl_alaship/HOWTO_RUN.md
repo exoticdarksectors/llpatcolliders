@@ -1,16 +1,8 @@
 # HOWTO: Run the FairShip-based HNL Pipeline
 
-## Prerequisites
-
-```bash
-conda activate llpatcolliders
-```
-
-ROOT with Pythia8 must be available (`python -c "import ROOT; print(ROOT.gROOT.GetVersion())"`).
-
-All commands below assume you are inside `hnl_alaship/`.
-All paths are `__file__`-based, so running from the repo root works too — just
-prefix each script path with `hnl_alaship/`.
+Command cheat-sheet. See `README.md` §Dependencies for the conda env and
+ROOT setup. Paths are `__file__`-based, so commands work from either
+`hnl_alaship/` or the repo root (prefix script paths with `hnl_alaship/`).
 
 ## Step 1: Generate meson -> HNL 4-vectors (FONLL channels)
 

@@ -20,11 +20,17 @@ from analysis.constants import FLAVORS, N_THRESHOLD
 
 # Styling for reference experiments
 _REF_STYLE = {
-    "MATHUSLA":  {"color": "#2166ac", "ls": "--",  "lw": 1.5},
-    "ANUBIS":    {"color": "#4dac26", "ls": "-.",  "lw": 1.5},
-    "CODEX-b":   {"color": "#e08214", "ls": ":",   "lw": 1.8},
-    "SHiP":      {"color": "#7b3294", "ls": "--",  "lw": 1.2},
+    "MATHUSLA":      {"color": "#2166ac", "ls": "--",  "lw": 1.5},
+    "ANUBIS":        {"color": "#4dac26", "ls": "-.",  "lw": 1.5},
+    "CODEX-b":       {"color": "#e08214", "ls": ":",   "lw": 1.8},
+    "SHiP":          {"color": "#7b3294", "ls": "--",  "lw": 1.2},
+    "PastExclusion": {"color": "#525252", "ls": "-",   "lw": 1.2},
 }
+
+# Type-I seesaw band: |U_alpha|^2 = m_nu / m_N, with m_nu spanning the
+# atmospheric splitting scale to the cosmological neutrino mass bound.
+_SEESAW_MNU_LOW_GeV  = 0.05e-9   # 0.05 eV
+_SEESAW_MNU_HIGH_GeV = 0.12e-9   # 0.12 eV (Planck 2018)
 
 _FLAVOR_LABEL = {
     "Ue":   r"$|U_e|^2$",
@@ -172,6 +178,16 @@ def _build_island_polygon(sel):
     return m_poly, u2_poly
 
 
+def _plot_seesaw_band(ax):
+    """Type-I seesaw band: |U|^2 = m_nu / m_N for m_nu in [0.05, 0.12] eV."""
+    m_grid = np.geomspace(*ax.get_xlim(), 200)
+    u2_low  = _SEESAW_MNU_LOW_GeV  / m_grid
+    u2_high = _SEESAW_MNU_HIGH_GeV / m_grid
+    ax.fill_between(m_grid, u2_low, u2_high,
+                    color="#bdbdbd", alpha=0.35, zorder=1,
+                    label=r"Type-I seesaw")
+
+
 def _plot_single_panel(ax, df, flavor, ref_curves, show_ylabel=False):
     """Plot one flavor panel."""
     sel = df[df["flavor"] == flavor].sort_values("mass_GeV")
@@ -186,19 +202,28 @@ def _plot_single_panel(ax, df, flavor, ref_curves, show_ylabel=False):
                     label="GARGOYLE", zorder=5)
             ax.plot(m_poly, u2_poly, "r-", linewidth=1.8, zorder=6)
 
-    # Reference contours
+    # Reference curves: closed contours (ANUBIS, MATHUSLA, CODEX-b) are drawn
+    # as a single connected line tracing the contour, with a light fill of the
+    # interior. Envelopes (PastExclusion) are drawn as a line with the
+    # "everything above" region shaded up to ymax.
+    ymax = ax.get_ylim()[1]
     for exp, curves in ref_curves.items():
         if flavor not in curves:
             continue
         c = curves[flavor]
         style = _REF_STYLE.get(exp, {"color": "gray", "ls": "-", "lw": 1.0})
-        ax.fill_between(c["mass"], c["u2_min"], c["u2_max"],
-                        alpha=0.08, color=style["color"])
-        ax.plot(c["mass"], c["u2_min"],
-                color=style["color"], ls=style["ls"], lw=style["lw"],
-                label=exp)
-        ax.plot(c["mass"], c["u2_max"],
-                color=style["color"], ls=style["ls"], lw=style["lw"])
+        if c.get("kind") == "envelope":
+            ax.fill_between(c["mass"], c["u2"], ymax,
+                            alpha=0.10, color=style["color"], zorder=2)
+            ax.plot(c["mass"], c["u2"],
+                    color=style["color"], ls=style["ls"], lw=style["lw"],
+                    label=exp, zorder=3)
+        else:
+            ax.fill(c["mass"], c["u2"],
+                    alpha=0.08, color=style["color"], zorder=2)
+            ax.plot(c["mass"], c["u2"],
+                    color=style["color"], ls=style["ls"], lw=style["lw"],
+                    label=exp, zorder=3)
 
     ax.set_xlabel(r"$m_N$ [GeV]", fontsize=14)
     if show_ylabel:
@@ -207,6 +232,7 @@ def _plot_single_panel(ax, df, flavor, ref_curves, show_ylabel=False):
     ax.set_yscale("log")
     ax.set_xlim([0.15, 6.0])
     ax.set_ylim([1e-12, 1e-1])
+    _plot_seesaw_band(ax)
     ax.grid(True, which="both", alpha=0.2, linewidth=0.5)
     ax.legend(fontsize=10, loc="upper right")
     ax.set_title(f"HNL {_FLAVOR_LABEL[flavor]}", fontsize=14)
