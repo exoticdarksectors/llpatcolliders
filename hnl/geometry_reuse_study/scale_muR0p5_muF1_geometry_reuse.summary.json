@@ -1,0 +1,75 @@
+{
+  "n_points": 30,
+  "all_xor_per_variation_hit_median": 0.9100914861218761,
+  "all_xor_per_variation_hit_max": 1.1682074987159734,
+  "all_missed_per_variation_hit_median": 0.45571837687996664,
+  "worst_points": [
+    {
+      "flavor": "Ue",
+      "mass_GeV": 1.8,
+      "xor_per_variation_hit": 1.1682074987159734,
+      "missed_per_variation_hit": 0.5801232665639445
+    },
+    {
+      "flavor": "Umu",
+      "mass_GeV": 1.8,
+      "xor_per_variation_hit": 1.1136250621581303,
+      "missed_per_variation_hit": 0.578070611636002
+    },
+    {
+      "flavor": "Umu",
+      "mass_GeV": 2.4,
+      "xor_per_variation_hit": 0.9577987846049967,
+      "missed_per_variation_hit": 0.4591492234976367
+    },
+    {
+      "flavor": "Ue",
+      "mass_GeV": 2.4,
+      "xor_per_variation_hit": 0.9568536342515765,
+      "missed_per_variation_hit": 0.46896780617324924
+    },
+    {
+      "flavor": "Ue",
+      "mass_GeV": 3.0,
+      "xor_per_variation_hit": 0.9560288560632085,
+      "missed_per_variation_hit": 0.46616283064239095
+    },
+    {
+      "flavor": "Ue",
+      "mass_GeV": 2.8,
+      "xor_per_variation_hit": 0.9554326610279765,
+      "missed_per_variation_hit": 0.4827586206896552
+    },
+    {
+      "flavor": "Umu",
+      "mass_GeV": 2.0,
+      "xor_per_variation_hit": 0.9448364336112893,
+      "missed_per_variation_hit": 0.4746632456703015
+    },
+    {
+      "flavor": "Ue",
+      "mass_GeV": 2.2,
+      "xor_per_variation_hit": 0.9388560157790927,
+      "missed_per_variation_hit": 0.4589086127547666
+    },
+    {
+      "flavor": "Ue",
+      "mass_GeV": 3.2,
+      "xor_per_variation_hit": 0.9364492266308003,
+      "missed_per_variation_hit": 0.46973772696704774
+    },
+    {
+      "flavor": "Umu",
+      "mass_GeV": 3.0,
+      "xor_per_variation_hit": 0.9359322033898305,
+      "missed_per_variation_hit": 0.4633898305084746
+    }
+  ],
+  "by_channel_median_xor_per_variation_hit": {
+    "Dmeson": 2.0000579119924526,
+    "Bmeson": 1.9561643835616438,
+    "Bbaryon": 1.9476258120555183,
+    "Bc": 0.0,
+    "WZ": 0.0
+  }
+}

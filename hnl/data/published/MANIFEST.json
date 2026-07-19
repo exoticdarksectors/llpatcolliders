@@ -1,0 +1,91 @@
+{
+  "artifact": "GRENDEL HNL single-flavor sensitivity (canonical published curve)",
+  "producer_repo": "llpatcolliders_HNL_PR1",
+  "producer_git_sha": "80668e6",
+  "producer_branch": "hnl-production-mesons-ew",
+  "source_run": "BC6/BC7 low-mass kaon rerun 2026-07-18: the charged-kaon channel is regenerated with the Pythia 8.315 SoftQCD spectrum + transport survival weight (d_esc=1.5 m nominal, n_pool 300k, seed 42), reusing the central_newgrids_20260623 non-kaon channels (bottom/charm/Bc/Bbaryon/induced_tau/prompt-tau/W-Z) and the same P>100 MeV, exact-100, beta=p/E analysis. Utau and all m_N>0.5 GeV are unchanged.",
+  "generated_from": "central_newgrids_20260623 non-kaon 4-vectors (symlinked) + regenerated Kmeson (production.decay_engine.generate_kaon_csvs --spectrum pythia --d-esc 1.5 --n-pool 300000 --seed 42), recombined and re-analysed, then spliced into the 2026-07-07 beta=p/E curve at Ue m_N<=0.485 and Umu m_N<=0.38.",
+  "csv_sha256": "b051ac77b1c2dd677c809e6acd6f3a34c8db374fb0d474a775d1678777a9b407",
+  "date_published": "2026-07-18",
+  "correction": "Supersedes the 2026-07-07 beta=p/E curve at low mass by replacing the old parametric kaon stub (Tsallis spectrum, sigma_kaon=3.0e11 pb, prompt-at-IP) with the Pythia 8.315 SoftQCD spectrum + charged-kaon transport survival weight (sigma_kaon=6.535e11 pb, d_esc=1.5 m). This weakens the low-mass reach: Ue m_N=0.2-0.485 by x1.71-1.91 (deepest 5.91e-9 -> 1.048e-8 @0.395 GeV), Umu m_N=0.2-0.38 by x1.61-1.82. The Umu peak sensitivity relocates OUT of the kaon window: best reach was 8.40e-9 @0.365 GeV and is now 1.297e-8 @1.5 GeV (D-meson region, unchanged). Utau (m_tau>m_K) and all m_N>0.5 GeV points are unchanged. The dominant kaon-sector systematic (transport d_esc) is quantified in bundle/kaon_desc_band.csv. See prior_correction for the earlier beta=p/E fix.",
+  "diagnostic_bundle": {
+    "path": "bundle/MANIFEST.json",
+    "status": "fully re-derived after the beta=p/E fix; the mass=0.305 GeV Ue/Umu band points were re-derived 2026-07-18 for the kaon rerun (0.305 is the only band mass in the K->lN window). At that kaon-dominated point the FONLL ribbon is omitted (band_lo/hi = NaN, acceptance-MC-noise-limited; see bundle FONLL_MANIFEST.json); the low-mass systematic is the kaon transport band. Otherwise consistent with the published central.",
+    "campaign_git_sha": "6482484dc928342cf3cb132a63d8df0f364dde17",
+    "postprocessing_git_sha": "2ab1f98bc636ca30e3848f1525c0542bd1a01710",
+    "kaon_partial_publication_git_sha": "ab1e6f8812e66780e2ed052d26f7a1e4107121a4",
+    "low_mass_ribbon_policy_git_sha": "337eddec910624bff665a87c74c3844ea99431fe",
+    "fonll_variations": 111,
+    "interpretation": "production/decay theory-model diagnostics, not statistical confidence bands; the paper comparison remains central-only"
+  },
+  "hypothesis": {
+    "mixing": "single-flavor",
+    "flavors": [
+      "Ue",
+      "Umu",
+      "Utau"
+    ],
+    "nature": "Majorana",
+    "observable": "|U_alpha|^2"
+  },
+  "analysis": {
+    "beam": "pp 14 TeV (HL-LHC)",
+    "L_int_fb": 3000.0,
+    "criterion": "N_signal >= 3 (background-free, 95% CL)",
+    "track_momentum_cut_MeV": 100,
+    "note_cut": "P>100 MeV is the deeper/latest run; the conservative P>600 MeV variant is exact_600."
+  },
+  "column_contract": {
+    "required_by_consumer": [
+      "mass_GeV",
+      "flavor",
+      "u2_min",
+      "u2_max"
+    ],
+    "u2_min": "lower mixing edge of the excluded island",
+    "u2_max": "upper mixing edge (blank/NaN => open; see u2_max_open)",
+    "has_sensitivity": "False => no excluded island at that mass"
+  },
+  "high_mass_closure": {
+    "closure_mass_GeV": "resolved on real points: ~3.63 (Ue/Umu), ~3.69 (Utau)",
+    "physics": "Island pinches because peak yield ~ sigma*beta*gamma*ctau(U^2=1) ~ sigma*bg/m_N^5 (ctau ~ 1/m_N^5). NOT a B-meson/|Vub| effect: W/Z produce N to 10 GeV but at any probeable mixing a 5-10 GeV N decays mm-m from the IP, not at the 22 m detector. High mass = prompt/near-IP (ATLAS/CMS DV) territory."
+  },
+  "headline_reach": {
+    "Ue": {
+      "best_u2_min": 1.0475e-08,
+      "best_u2_min_at_mass_GeV": 0.395,
+      "mass_lo_GeV": 0.2,
+      "mass_hi_closure_GeV": 3.62,
+      "n_sensitive_points": 90
+    },
+    "Umu": {
+      "best_u2_min": 1.2969e-08,
+      "best_u2_min_at_mass_GeV": 1.5,
+      "mass_lo_GeV": 0.2,
+      "mass_hi_closure_GeV": 3.62,
+      "n_sensitive_points": 90,
+      "note": "peak reach relocated from the kaon window (was 8.40e-9 @0.365) to the D-meson region at 1.5 GeV after the kaon-transport weakening; the low-mass Umu minimum is now ~1.37e-8 @0.350 GeV"
+    },
+    "Utau": {
+      "best_u2_min": 2.96639672250831e-07,
+      "best_u2_min_at_mass_GeV": 2.8,
+      "mass_lo_GeV": 0.2,
+      "mass_hi_closure_GeV": 3.685,
+      "n_sensitive_points": 95
+    }
+  },
+  "consumer": "GRENDEL competitor-curves plotting package (digitize/make_plots_three_flavor.py overlays PBC BC7 + HNLimits)",
+  "prior_correction": "Timing chi2 uses each daughter's true beta=p/E instead of a hardcoded beta=1 (implementation commit 79c7337; canonical publication commit fad3a8b). This is an analysis-stage fix (production unchanged); it imposes a species-dependent effective momentum floor above the 100 MeV track cut. Effect vs the previous publish: no mass points lost, closure unchanged, u2_min degrades modestly (median +3.7/+4.5/+9.0% for Ue/Umu/Utau, worst +33% at low mass).",
+  "kaon_transport_band": {
+    "path": "bundle/kaon_desc_band.csv",
+    "variable": "charged-kaon transport escape length d_esc (CMS material-budget proxy)",
+    "values_m": [
+      1.0,
+      1.5,
+      3.0
+    ],
+    "nominal_m": 1.5,
+    "affects": "Ue m_N<=0.485 and Umu m_N<=0.38 (the K->lN window) only",
+    "interpretation": "Diagnostic band on the low-mass Ue/Umu lower edge from the dominant kaon-sector systematic. u2_min is monotonic in d_esc (larger d_esc -> more kaon survival -> stronger limit); the [1,3] m spread is roughly +-20-25% around the 1.5 m central. Generated with the same seed (42) across d_esc, so it is a pure transport systematic, not MC scatter. Pending a real CMS material map."
+  }
+}

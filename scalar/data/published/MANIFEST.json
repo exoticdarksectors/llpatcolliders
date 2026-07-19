@@ -1,0 +1,83 @@
+{
+ "artifact": "GRENDEL BC4 dark-scalar sensitivity (canonical published curve)",
+ "producer_repo": "llpatcolliders (branch bc4-scalar)",
+ "producer_git_sha": "8c9b830ae3e788ffda674775743cc8061d18f4e7",
+ "producer_git_note": "Publish commit on llpatcolliders bc4-scalar: the Lambda_b production and uncertainty-band event-count-fix code together with the promoted central and 109-variation bundle CSVs. Supersedes the pre-Lambda_b producer sha 8c6fa509; grendel_scalar mirrors this tree.",
+ "source_run": "Lambda_b republication 2026-07-18: central island from an 86-point, 400000-parent high-pT importance-sampled FONLL pool per b-hadron species (B+, B0, Bs, Lambda_b; tilt 5 GeV, 50% nominal mixture, seed 42, 100 decay/reconstruction samples); the uncertainty bundle is a matching 109-variation + 2 numerical-control campaign at 100000 parents per species.",
+ "generated_from": "scalar.run_sensitivity (central) + scalar.uncertainty_band run/collect (bundle), both with the Lambda_b b-baryon pool and the physical Lambda recoil",
+ "csv_sha256": "45aec445068cfe77ec2d75bf20e251255559545561cde3f77f1c2ba74c35e84c",
+ "date_published": "2026-07-18",
+ "correction": "Adds the b-baryon pool (Lambda_b, FRAG 0.18755, physical Lambda recoil) to b -> X_s S; supersedes the 2026-07-15 meson-only curve AND its bundle. The lower edge strengthens by 8-18% (deepest reach 7.399e-12 -> 6.519e-12 at 0.975 GeV, -0.055 dex; growing toward closure), the closure extends 3.70 -> 3.80 GeV (interpolated 3.825), and one sensitive grid point is added (76 -> 77). Central and 109-variation bundle are regenerated together and are hash-linked.",
+ "hypothesis": {
+  "model": "PBC BC4: Higgs-portal dark scalar, mixing only (no quartic)",
+  "observable": "sin^2 theta"
+ },
+ "physics_inputs": {
+  "production": "inclusive b -> X_s S (Winkler arXiv:1809.01876 eq. A7) summed over B+, B0, Bs, and Lambda_b (b-baryon pool, spectator-independent rate); FONLL 14 TeV bottom kinematics (NNPDF4.0 NLO); two-body recoil = kaon for the mesons, Lambda for Lambda_b",
+  "decays": "Winkler dispersive hadronic widths (digitized Fig. 4) below 2 GeV, perturbative spectator model above; analytic leptonic widths"
+ },
+ "analysis": {
+  "beam": "pp 14 TeV (HL-LHC)",
+  "L_int_fb": 3000.0,
+  "criterion": "N_signal >= 3 (background-free, 95% CL)",
+  "reconstruction": "shared GRENDEL 4-hit two-track vertex reconstruction and PR #13 selection, imported from higgs/ and hnl/ (timing chi2 with daughter beta = p/E)"
+ },
+ "column_contract": {
+  "required_by_consumer": [
+   "mass_GeV",
+   "u2_min",
+   "u2_max"
+  ],
+  "u2_min": "lower sin^2 theta edge of the excluded island",
+  "u2_max": "upper sin^2 theta edge of the excluded island; NaN when u2_max_open is true",
+  "has_sensitivity": "False => no excluded island at that mass (peak_N < 3)",
+  "peak_N": "signal yield at the optimal mixing",
+  "ctau_sin2th1_m": "scalar ctau at sin^2 theta = 1, metres",
+  "event_ess_columns": "importance-weight effective event counts at the lower edge, peak, and upper edge"
+ },
+ "headline_reach": {
+  "best_sin2theta_min": 6.519322521124366e-12,
+  "best_sin2theta_min_at_mass_GeV": 0.975,
+  "mass_lo_grid_GeV": 0.14,
+  "mass_hi_grid_GeV": 3.8,
+  "mass_hi_closure_GeV": 3.8250350494827976,
+  "n_sensitive_points": 77,
+  "n_grid_points": 86
+ },
+ "topology": {
+  "sensitive_grid_run_GeV": [
+   0.14,
+   3.8
+  ],
+  "upper_open_grid_run_GeV": [
+   0.14,
+   0.2
+  ],
+  "finite_threshold_tips": "Every adjacent finite sensitive/insensitive transition is closed by log-yield/log-coupling interpolation at N_signal = 3."
+ },
+ "numerical_validation": {
+  "minimum_sensitive_lower_edge_event_ess": 2249.3316183117886,
+  "minimum_sensitive_peak_event_ess": 2048.999110980777,
+  "minimum_sensitive_upper_edge_event_ess": 201.25736238803464,
+  "six_million_event_high_mass_peak_controls": {
+   "3.75": 3.924917827267497,
+   "3.80": 2.857946200087359,
+   "3.85": 2.0692572797580233
+  },
+  "independent_control_closure_GeV": 3.7923545732986583,
+  "independent_control_csv_sha256": "af1f2ab5cdf58662f8eabf384eec38243e5929ec86c9c2c5389d3bb58000b511",
+  "interpretation": "These six-million-event controls are the MESON-ONLY baseline: they retain sensitivity at 3.75 GeV, independently reject 3.80 and 3.85 GeV, and their interpolated closure (3.792 GeV) matches the meson-only central closure (3.798 GeV) within 0.006 GeV -- so the meson-only high-mass endpoint is not a finite-pool artifact. The published Lambda_b central closure is 3.825 GeV; its finite-pool robustness rests on the >= 2049 effective events at every sensitive peak (not on these meson-only controls), and a matching Lambda_b 6M control is a pending refresh (see lambda_b_note).",
+  "lambda_b_note": "The six-million-event controls below are the MESON-ONLY baseline; the Lambda_b central retains sensitivity at 3.80 GeV. A Lambda_b 6M control is a pending refresh (does not affect the published central or bundle)."
+ },
+ "closure_note": "With the Lambda_b pool the inclusive b -> X_s S yield retains N_signal >= 3 at 3.80 GeV (peak_N = 3.44); log-yield interpolation between the 3.80 and 3.90 GeV central grid rows places the closure at 3.825 GeV (up from 3.7975 GeV meson-only). The deepest point remains at the f0(980) enhancement.",
+ "grid": {
+  "n_masses": 86,
+  "mass_min_GeV": 0.14,
+  "mass_max_GeV": 4.7
+ },
+ "lambda_b_residuals": {
+  "note": "Central + 109-variation bundle are Lambda_b-consistent and hash-linked.",
+  "six_million_event_closure_control": "numerical_validation.six_million_event_high_mass_peak_controls is still the MESON-ONLY baseline (placed closure at 3.79 GeV). The Lambda_b central retains sensitivity at 3.80 GeV; a Lambda_b 6M control is a small pending refresh, not required for the band.",
+  "paper_figure": "paper/figures/bc4_exclusion.pdf to be refreshed via the paper adapter from this Lambda_b central + bundle."
+ }
+}
