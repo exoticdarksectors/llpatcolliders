@@ -1,0 +1,75 @@
+{
+  "n_points": 30,
+  "all_xor_per_variation_hit_median": 0.8957332009420556,
+  "all_xor_per_variation_hit_max": 1.1552409339294585,
+  "all_missed_per_variation_hit_median": 0.4482971510230045,
+  "worst_points": [
+    {
+      "flavor": "Ue",
+      "mass_GeV": 1.8,
+      "xor_per_variation_hit": 1.1552409339294585,
+      "missed_per_variation_hit": 0.5901639344262295
+    },
+    {
+      "flavor": "Umu",
+      "mass_GeV": 1.8,
+      "xor_per_variation_hit": 1.103899308983218,
+      "missed_per_variation_hit": 0.5767522211253702
+    },
+    {
+      "flavor": "Ue",
+      "mass_GeV": 2.8,
+      "xor_per_variation_hit": 0.9531039136302294,
+      "missed_per_variation_hit": 0.463225371120108
+    },
+    {
+      "flavor": "Ue",
+      "mass_GeV": 3.0,
+      "xor_per_variation_hit": 0.9488597097442986,
+      "missed_per_variation_hit": 0.45957152729785766
+    },
+    {
+      "flavor": "Ue",
+      "mass_GeV": 2.4,
+      "xor_per_variation_hit": 0.9445727482678984,
+      "missed_per_variation_hit": 0.46585285384361597
+    },
+    {
+      "flavor": "Umu",
+      "mass_GeV": 2.4,
+      "xor_per_variation_hit": 0.931877444589309,
+      "missed_per_variation_hit": 0.4641460234680574
+    },
+    {
+      "flavor": "Ue",
+      "mass_GeV": 3.2,
+      "xor_per_variation_hit": 0.9295021717340461,
+      "missed_per_variation_hit": 0.4694286668894086
+    },
+    {
+      "flavor": "Umu",
+      "mass_GeV": 2.0,
+      "xor_per_variation_hit": 0.9265279583875162,
+      "missed_per_variation_hit": 0.45871261378413525
+    },
+    {
+      "flavor": "Umu",
+      "mass_GeV": 3.0,
+      "xor_per_variation_hit": 0.9233804669516607,
+      "missed_per_variation_hit": 0.47221308780006577
+    },
+    {
+      "flavor": "Ue",
+      "mass_GeV": 2.2,
+      "xor_per_variation_hit": 0.9211304633585278,
+      "missed_per_variation_hit": 0.4502136049950706
+    }
+  ],
+  "by_channel_median_xor_per_variation_hit": {
+    "Bbaryon": 1.9264926515326155,
+    "Bmeson": 1.9038461538461537,
+    "Dmeson": 1.8283840897420705,
+    "Bc": 0.0,
+    "WZ": 0.0
+  }
+}

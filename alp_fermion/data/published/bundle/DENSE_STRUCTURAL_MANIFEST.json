@@ -1,0 +1,78 @@
+{
+  "analysis": {
+    "decay_model": "exact SensCalc arXiv:2310.03524 structural alternative",
+    "geometry_reuse": "exact canonical ALP entry/exit cache",
+    "n_decay_samples_per_detector_entering_alp": 60,
+    "n_parent_pool": 1200000,
+    "production_reuse": "exact canonical high-statistics ALP four-vectors",
+    "production_seed": 42,
+    "template_seed": 5234
+  },
+  "artifact": "GRENDEL BC10 refined-grid exact 2310 structural comparison",
+  "command": "cd /Volumes/GRENDEL/extra_space/llpatcolliders_BC10_2310_structural && ALP_LLP_VECTORS_DIR=/Volumes/GRENDEL/extra_space/bc10_final/llp_4vectors ALP_TEMPLATE_DIR=/Volumes/GRENDEL/extra_space/bc10_final/decay_templates_2310 ALP_ANALYSIS_DIR=/Volumes/GRENDEL/extra_space/bc10_final/analysis_2310 ALP_GEOM_CACHE_DIR=/Volumes/GRENDEL/extra_space/bc10_final/geometry_cache /Volumes/sandbox/conda/envs/llpatcolliders_FONLL/bin/python -u -m alp_fermion.sensitivity --output /Volumes/GRENDEL/extra_space/bc10_final/analysis_2310/bc10_sensitivity.csv --decay-samples 60 --resume",
+  "inputs": {
+    "central_curve": {
+      "file": "bc10_sensitivity.csv",
+      "rows": 145,
+      "sha256": "d4ea435258a4cdecef47b5764f36bff452d2f08f6e3190172a3f1e97f7ec308c"
+    },
+    "central_publication_manifest": {
+      "file": "MANIFEST.json",
+      "producer_git_sha": "05b71ec48a7b9b90e1176439eb970c6c570eb655",
+      "sha256": "2fcc232b815677243c66491821de027ef5710544a1c30bf19aa69ac714fa0b77"
+    },
+    "decay_templates": {
+      "decay_model": "2310_structural",
+      "n_files": 143,
+      "n_templates_per_mass": 20000,
+      "total_bytes": 413401074,
+      "tree_sha256": "89835756b516db1e04294f9be413d1c0214982dfe2b36b1b75a4393b0686b08d"
+    },
+    "geometry_cache": {
+      "geometry_tree_sha256": "4d030aa2c151453ef935f79554029caec7ab6b4361a959bd9599b521ef200cf4",
+      "n_geometry_files": 143,
+      "total_geometry_bytes": 42361769
+    },
+    "mass_grid": {
+      "canonical_sha256": "a47eee028d9a46b1bdfe4051d5075fd52ab5a2732422e9364c5bfde6ad57c467",
+      "file": "mass_grid.csv",
+      "n_masses": 145,
+      "sha256": "5f0fa7bf2cb08dde3d309137bbc5b0e54239493c525ecf79a7f081cbc335746b"
+    },
+    "production_vectors": {
+      "n_vector_files": 143,
+      "total_vector_bytes": 12331722981,
+      "vector_tree_sha256": "6eeb8fc9fe8b215340e898284fc5c9b742d230be6ad757bcf992017d5c7dbe94"
+    }
+  },
+  "output": {
+    "file": "bc10_sensitivity.csv",
+    "n_sensitive": 122,
+    "rows": 145,
+    "sha256": "5ea73930637bfd30ddfce4517ef543b6a36f84c4dbb19da39b2f9e3ea1985ec0"
+  },
+  "producer_code": {
+    "commit": "047743291b8d874633158af0e49256e9145fe30b",
+    "repository": "llpatcolliders (branch bc10-alp)"
+  },
+  "recorder_code": {
+    "commit": "f8be5b3c8bdadea5ef56dede5f68556aa2d38805",
+    "tracked_diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "tracked_tree_clean": true
+  },
+  "role": "one_sided_structural_model_comparison_outside_pointwise_halo",
+  "schema_version": 1,
+  "software": {
+    "numpy": "1.26.4",
+    "pandas": "2.3.3",
+    "platform": "macOS-15.7.7-arm64-arm-64bit",
+    "python": "3.11.15"
+  },
+  "topology_comparison": {
+    "n_central_sensitive": 103,
+    "n_removed": 0,
+    "n_restored": 19,
+    "n_structural_sensitive": 122,
+    "n_topology_differences": 19
+  }
+}

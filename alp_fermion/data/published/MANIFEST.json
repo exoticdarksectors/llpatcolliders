@@ -1,0 +1,88 @@
+{
+  "artifact": "GRENDEL BC10 fermiophilic-ALP sensitivity (canonical published curve)",
+  "producer_repo": "llpatcolliders (branch bc10-alp)",
+  "producer_git_sha": "05b71ec48a7b9b90e1176439eb970c6c570eb655",
+  "source_run": "High-statistics publication campaign completed 2026-07-15: 145-point mass grid, 1200000-event high-pT importance-sampled FONLL production pool (tilt scale 5 GeV, 50% nominal mixture, seed 42), 20000 full-branching Pythia8 decay templates per supported mass, exact SensCalc three-body matrix-element reweighting, 60 decay/reconstruction samples per detector-entering ALP, and EVENT_CHUNK=256 memory-bounded acceptance MC.",
+  "generated_from": "external high-statistics alp_fermion.sensitivity output",
+  "csv_sha256": "d4ea435258a4cdecef47b5764f36bff452d2f08f6e3190172a3f1e97f7ec308c",
+  "date_published": "2026-07-15",
+  "hypothesis": {
+    "model": "PBC BC10: pseudoscalar ALP with universal SM-fermion couplings",
+    "coupling": "g_aff = c_f m_f / f with c_f = 1 (BNT arXiv:1708.00443 convention)",
+    "convention_note": "1/f here = 2/f_GKOZ (arXiv:2310.03524); map any GKOZ/PBC comparison curve accordingly",
+    "observable": "1/f [GeV^-1]"
+  },
+  "physics_inputs": {
+    "production": "b -> s a penguin as B -> K^(i) a summed over the kaon tower (K, K*, K0*, K1, K2*) per GKOZ arXiv:2310.03524; FONLL 14 TeV bottom kinematics (NNPDF4.0 NLO)",
+    "decays": "Widths, exclusive branching ratios, and three-body squared matrix elements from arXiv:2501.04525, decoded from pinned SensCalc v1.3.3 inputs; flat three-body Pythia phase space is reweighted by the exact matrix elements, while unstable daughters and partonic channels are processed with Pythia 8.317 using an equal u/d/s surrogate for the two-gluon channel"
+  },
+  "analysis": {
+    "beam": "pp 14 TeV (HL-LHC)",
+    "L_int_fb": 3000.0,
+    "criterion": "N_signal >= 3 (background-free, 95% CL)",
+    "reconstruction": "shared GRENDEL 4-hit two-track vertex reco + PR #13 selection, imported from higgs/ and hnl/ (timing chi2 with daughter beta = p/E); full exclusive branching mixture is sampled before reconstruction"
+  },
+  "column_contract": {
+    "required_by_consumer": [
+      "mass_GeV",
+      "invf_min",
+      "invf_max"
+    ],
+    "invf_min": "lower 1/f edge of the excluded island [GeV^-1]",
+    "invf_max": "upper 1/f edge of the excluded island [GeV^-1]",
+    "has_sensitivity": "False => no excluded island at that mass (peak_N < 3), including explicit unsupported pole rows",
+    "peak_N": "signal yield at the optimal coupling (max over the 1/f scan)",
+    "peak_invf": "optimal 1/f [GeV^-1]",
+    "event_ess_columns": "importance-weight effective event counts at the lower edge, peak, and upper edge"
+  },
+  "headline_reach": {
+    "best_invf_min_GeV_inv": 1.2072792230390657e-08,
+    "best_invf_min_at_mass_GeV": 1.23,
+    "mass_lo_GeV": 0.22,
+    "mass_hi_sensitive_grid_GeV": 3.28,
+    "mass_hi_closure_GeV": 3.2930327918608864,
+    "n_sensitive_points": 103,
+    "n_grid_points": 145
+  },
+  "topology": {
+    "sensitive_grid_runs_GeV": [
+      [0.22, 0.52],
+      [0.56, 0.94],
+      [0.98, 1.25],
+      [1.40, 1.41],
+      [1.47, 3.28]
+    ],
+    "unsupported_pole_rows_GeV": [0.54, 0.96],
+    "finite_threshold_tips": "Every adjacent finite sensitive/insensitive transition is closed by log-yield/log-coupling interpolation at N_signal = 3; unsupported pole rows are not bridged."
+  },
+  "numerical_validation": {
+    "minimum_sensitive_lower_edge_event_ess": 1527.9598951472092,
+    "minimum_sensitive_peak_event_ess": 1459.217688673676,
+    "minimum_sensitive_upper_edge_event_ess": 170.55222824133324,
+    "six_million_event_upper_edge_controls_GeV_inv": {
+      "0.48": 5.048865392292523e-06,
+      "0.50": 4.813048091496091e-06,
+      "0.58": 3.9717142762177156e-06,
+      "0.76": 2.908679845244607e-06
+    },
+    "six_million_event_high_mass_peak_controls": {
+      "1.25": 3.1484080167059214,
+      "1.40": 3.1739349554483787,
+      "3.20": 3.6302989772989336,
+      "3.30": 2.877106042704485
+    },
+    "interpretation": "The direct controls reproduce the low-mass upper edge within 2.0% and independently retain sensitivity at 1.25, 1.40, and 3.20 GeV while rejecting 3.30 GeV. The resonance-induced topology and final closure are therefore not finite-pool artifacts."
+  },
+  "matrix_element_update": {
+    "n_rescanned_masses_in_controlled_2026-07-13_study": 45,
+    "max_abs_peak_yield_fractional_shift": 0.026431863775861375,
+    "max_abs_invf_min_fractional_shift": 0.012888613654946868,
+    "max_abs_invf_max_fractional_shift": 0.014134375359955653
+  },
+  "closure_note": "The 2501 decay model produces five disconnected sensitive grid runs. The first two gaps are the explicitly unsupported eta and eta-prime pole windows. Heavy-pseudoscalar width enhancements suppress the optimized yield below threshold at 1.26-1.39 and 1.42-1.46 GeV, leaving a narrow 1.40-1.41 GeV lobe before the final component reopens at 1.47 GeV. Log-yield interpolation between 3.28 and 3.30 GeV places the final central closure at 3.2930 GeV.",
+  "grid": {
+    "n_masses": 145,
+    "mass_min_GeV": 0.22,
+    "mass_max_GeV": 4.75
+  }
+}

@@ -1,0 +1,24 @@
+{
+	"senscalc_repository":"https:\/\/github.com\/maksymovchynnikov\/SensCalc",
+	"senscalc_tag":"v.1.3.3",
+	"senscalc_commit":"0bca050633aae16e148d47f21840fa07ff4b8724",
+	"phenomenology":"arXiv:2310.03524",
+	"decay_model":"2310_structural",
+	"wolfram_version":"15.0.0 for Mac OS X ARM (64-bit) (May 26, 2026)",
+	"wolfram_system_id":"MacOSX-ARM64",
+	"exported_utc":"2026-07-14T15:24:53",
+	"source_sha256":{
+		"widths":"40b51e8d35a8edbb3027cfcc3a2bb369faff8fc009a958863d6264f227410e93",
+		"branching_ratios":"130aaa7e95c50a3fea8f43a537fcddfe2bf2d4f676a6110bd3f88097da2826cd",
+		"matrix_elements":"89ef54601fc995418e9967d8269862e27cb86852a847bff1669e8948aa12dfca",
+		"acceptance_notebook":"8d205b65da456fb1a8fac8d1803eaa73ae839128a60d0624eeea17cacee5d4b4"
+	},
+	"output_sha256":{
+		"widths_raw_senscalc.csv":"450d6cbcd1b0685f5bb0f818f1eafa868a1946f29c47ded82869c9e35b4956c2",
+		"widths_bnt.csv":"d28e26c0dfc615197d877aefa0904b8efb1665d07d07df57d3d35383c2e68eb5",
+		"widths_metadata.json":"22b922c661b88f1b3152bb4be49a4f64356cd3cf1ecc4454e2025c34ca7628f2",
+		"branching_ratios.csv":"74ef987903649d5adc72e17a3469f3af4cf0f05dfe6c12ac44460343ce54b4ba",
+		"decay_channels.json":"8b2ff6d6b8598eeb308699631f6597853b379d2bf877f03c8af085b338f7d1f3",
+		"matrix_elements.json":"09746bfe86658ccf75258e3373577f967fa612264acf07ccbd7ae0eaea98ee65"
+	}
+}

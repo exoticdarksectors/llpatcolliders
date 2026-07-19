@@ -3,18 +3,28 @@
 *.sw[nop]
 *~
 
-# ---- Python ----
+# ---- Python / build / test caches ----
 __pycache__/
-*.py[co]
+*.py[cod]
+*$py.class
+*.egg-info/
+build/
+dist/
+.pytest_cache/
+.coverage
+.mypy_cache/
+
+# ---- Virtual environments ----
+.venv/
+venv/
+env/
 
 # ---- Generated plots / animations ----
 *.png
 *.gif
 
-# ---- Logs ----
+# ---- Logs and cached binary products ----
 *.log
-
-# ---- Cached / binary data products ----
 *.npz
 *.so
 
@@ -36,3 +46,8 @@ jet*.csv
 cosmic_decay_collin_passers*.csv
 event_decay_statistics*.csv
 particle_decay_results*.csv
+
+# ---- MadGraph / PLY transient files ----
+py.py
+parser.out
+MG5_debug
