@@ -1,3 +1,30 @@
+# Python bytecode / caches
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Build / packaging
+*.egg-info/
+build/
+dist/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Test / coverage caches
+.pytest_cache/
+.coverage
+.mypy_cache/
+
+# OS / editor cruft
+.DS_Store
+
+# MadGraph/PLY transient files that may be emitted from the invocation cwd.
+py.py
+parser.out
+MG5_debug
 # ---- OS / editor cruft ----
 .DS_Store
 *.sw[nop]
