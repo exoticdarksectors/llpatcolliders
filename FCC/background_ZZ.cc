@@ -43,7 +43,7 @@ int main() {
         
         TString fileName = Form("./bg_ZZ_qqqq/bg_ZZ_qqqq_%d.root", ifile);
         // Number of events.
-        int nEvent = 200000;
+        int nEvent = 25000;
         
         // Generator. Incoming beams. (Switch off iniial-state photon radiation.)
         Pythia pythia;
@@ -206,6 +206,8 @@ int main() {
             
             if(sortedJets.size()==0) continue;
             
+
+            double jet_x, jet_y, jet_z, jet_r;
             
             for (int jet_tree=0; jet_tree<sortedJets.size(); ++jet_tree ){
                 num_event = previous_size;
@@ -219,12 +221,14 @@ int main() {
                     constituents.push_back(jet_constituents[j].user_index());
                 }
 
+                jet_E_nd = 0;
+
                 for (int i=0; i<jet_constituents.size();++i){
-                    x = pythia.event[jet_constituents[i].user_index()].xProd();
-                    y = pythia.event[jet_constituents[i].user_index()].yProd();
-                    z = pythia.event[jet_constituents[i].user_index()].zProd();
-                    r = sqrt(x*x + y*y + z*z);
-                    if(r>1.0) {
+                    jet_x = pythia.event[jet_constituents[i].user_index()].xProd();
+                    jet_y = pythia.event[jet_constituents[i].user_index()].yProd();
+                    jet_z = pythia.event[jet_constituents[i].user_index()].zProd();
+                    jet_r = TMath::Sqrt(jet_x*jet_x + jet_y*jet_y + jet_z*jet_z);
+                    if(jet_r>1.0) {
                         continue;}
                     if(pythia.event[jet_constituents[i].user_index()].isCharged()==false) {
                         continue;}
@@ -239,6 +243,11 @@ int main() {
             
             previous_size+=pythia.event.size();
             
+
+            double q_eta;
+            double q_phi;
+            std::vector<int> q_DaughterListRec;
+            TRandom3 *rand = new TRandom3(0); 
             
             for (int ipt = 0; ipt < pythia.event.size();++ipt){ //store MC information
                 pid = pythia.event[ipt].id();
@@ -260,10 +269,8 @@ int main() {
                 isFinal = pythia.event[ipt].isFinal();
                 isCharged = pythia.event[ipt].isCharged();
                 SisterList = pythia.event[ipt].sisterList();
-                random = TRandom3.Gaus(0,0.1);
-                random2 = TRandom3.Gaus(0,0.02);
-                smear_t = random;
-                smear_t2 = random2;
+                smear_t = rand->Gaus(0,0.1);
+                smear_t2 = rand->Gaus(0,0.02);
                 
                 if(pythia.event[ipt].daughter1()==pythia.event[ipt].daughter2() && pythia.event[ipt].daughter1()>0){
                     int q;
@@ -294,22 +301,22 @@ int main() {
                     } 
                     
                     for (int quark_entry=0; quark_entry<pythia.event[ipt].daughterList().size(); ++quark_entry){
-                        entry_OI = pythia.event[ipt].daughterList()[quark_entry];
+                        int entry_OI = pythia.event[ipt].daughterList()[quark_entry];
                         if(pythia.event[entry_OI].daughter1()==pythia.event[entry_OI].daughter2() && pythia.event[entry_OI].daughter1()>0) {
                             int q;
                             q = pythia.event[entry_OI].daughter1();
                             while(pythia.event[q].daughter1()==pythia.event[q].daughter2() && pythia.event[q].daughter1()>0){
                                 q = pythia.event[q].daughter1();
                             }
-                            double q_eta = pythia.event[q].eta();
-                            double q_phi = pythia.event[q].phi(); 
-                            std::vector<int> q_DaughterListRec = pythia.event[q].daughterListRecursive();
+                            q_eta = pythia.event[q].eta();
+                            q_phi = pythia.event[q].phi(); 
+                            q_DaughterListRec = pythia.event[q].daughterListRecursive();
                         }
 
                         else{
-                            double q_eta = pythia.event[entry_OI].eta();
-                            double q_phi = pythia.event[entry_OI].phi();
-                            std::vector<int> q_DaughterListRec = pythia.event[entry_OI].daughterListRecursive();
+                            q_eta = pythia.event[entry_OI].eta();
+                            q_phi = pythia.event[entry_OI].phi();
+                            q_DaughterListRec = pythia.event[entry_OI].daughterListRecursive();
                         }
 
                         std::vector<double> delta_R_vec;
@@ -362,7 +369,7 @@ int main() {
 
                                 bool is_in_jet = false;
 
-                                for (int jet_const=0; jet_const<sortedJets[jetAssignment].constituents(); ++jet_const){
+                                for (int jet_const=0; jet_const<sortedJets[jetAssignment].constituents().size(); ++jet_const){
                                     if (sortedJets[jetAssignment].constituents()[jet_const].user_index() == q_DaughterListRec[q_final]){
                                         is_in_jet = true;
                                         break;
@@ -402,8 +409,8 @@ int main() {
                         }
 
                         hard_MC_event = Event_entry;
-                        hard_smear_t = TRandom3.Gaus(0,0.1);
-                        hard_smear_t2 = TRandom3.Gaus(0,0.02);
+                        hard_smear_t = rand->Gaus(0,0.1);
+                        hard_smear_t2 = rand-> Gaus(0,0.02);
                         t_hard->Fill();
 
                         hard_e = 0.;
