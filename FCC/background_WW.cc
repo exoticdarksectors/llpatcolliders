@@ -38,12 +38,11 @@ int main() {
     
     for(int ifile=1; ifile<=total_file; ifile++){
         
-        TString fileName = Form("./bg_ZH_qqbb/bg_ZH_qqbb_%d.root", ifile);
-        
+        TString fileName = Form("./bg_WW_qqqq/bg_WW_qqqq_%d.root", ifile);
         // Number of events.
         int nEvent = 200000;
         
-        // Generator. Incoming beams. (Switch off initial-state photon radiation.)
+        // Generator. Incoming beams. (Switch off iniial-state photon radiation.)
         Pythia pythia;
         
         pythia.readString("Random:setSeed = on");
@@ -54,13 +53,15 @@ int main() {
         pythia.readString("Beams:eCM = 240.");
         //pythia.readString("PDF:lepton = off");
         
-        // All Higgs production channels.
-        pythia.readString("HiggsSM:all = on");
-        pythia.readString("25:onMode = 0");
+        // Weak Double Bosons production channels.
+        pythia.readString("WeakDoubleBoson:ffbar2WW = on");
+        //pythia.readString("25:onMode = 0");
         //pythia.readString("23:onMode = 1");
-        pythia.readString("25:onIfAny = 5");
-        pythia.readString("23:onMode = off");
-        pythia.readString("23:onIfAny = 1 2 3 4 5");
+        //pythia.readString("25:onIfAny = 5");
+        pythia.readString("24:onMode = off");
+        pythia.readString("24:onIfAny = 1 2 3 4 5");
+        pythia.readString("-24:onMode = off");
+        pythia.readString("-24:onIfAny = 1 2 3 4 5");
         //pythia.readString("PartonLevel:ISR = off");
         //pythia.readString("PartonLevel:FSR = off");
         //pythia.readString("TimeShower:QEDshowerByL=off");
