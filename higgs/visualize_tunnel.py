@@ -115,23 +115,21 @@ set_equal_aspect_3d(ax1, expand=(1.0, 1.2, 1.0))  # +20% on CMS-Z (beam)
 
 ax2 = fig.add_subplot(222)
 
-# Draw projected profile outlines at intervals along centreline
-for i in np.linspace(0, len(path)-1, 15, dtype=int):
-    ring = _profile_ring_3d(path, i, profile_outer)
-    ax2.plot(ring[:, 0], ring[:, 2], 'b-', alpha=0.3, linewidth=0.5)
+# Tunnel width as a solid blue band: centreline offset by ±half-width
+# perpendicular to the path in the X-Z plane.
+half_width = profile_outer[:, 0].max()
+xz = path[:, [0, 2]]
+tang = np.gradient(xz, axis=0)
+tang /= np.linalg.norm(tang, axis=1, keepdims=True)
+perp = np.column_stack([-tang[:, 1], tang[:, 0]])  # in-plane normal
+left = xz + half_width * perp
+right = xz - half_width * perp
+band = np.vstack([left, right[::-1]])
+ax2.fill(band[:, 0], band[:, 1], color='blue', alpha=0.3, label='Tunnel width')
 
 # Centreline
 ax2.plot(path[:, 0], path[:, 2], 'r-', linewidth=2, label='Centreline')
 ax2.scatter(origin[0], origin[2], color='green', s=200, marker='o', label='Origin')
-
-# Nearest / farthest annotations
-dists_xz = np.sqrt((path[:, 0] - origin[0])**2 + (path[:, 2] - origin[2])**2)
-near_i = np.argmin(dists_xz)
-far_i  = np.argmax(dists_xz)
-ax2.plot([origin[0], path[near_i, 0]], [origin[2], path[near_i, 2]],
-         'g--', alpha=0.5, label=f'Nearest: {dists_xz[near_i]:.1f} m')
-ax2.plot([origin[0], path[far_i, 0]], [origin[2], path[far_i, 2]],
-         'r--', alpha=0.5, label=f'Farthest: {dists_xz[far_i]:.1f} m')
 
 ax2.set_xlabel('X (m)')
 ax2.set_ylabel('Z (beam, m)')
