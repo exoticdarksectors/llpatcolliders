@@ -298,8 +298,12 @@ _correctedVert = [
 _X_SHIFT = 11908.8279764855    # mm
 _Y_SHIFT = 13591.106147774964  # mm
 
+# Note: the beam (Z) coordinate is negated here to match the CMS +z/-z
+# convention used in the visualizations. This is a global sign flip on Z; it is
+# a reflection symmetry with no impact on any physics result (distances, path
+# lengths, decay probabilities, and rates are all invariant under z -> -z).
 correctedVertWithShift = [
-    ((x - _X_SHIFT) / 1000, (y + _Y_SHIFT) / 1000)
+    ((x - _X_SHIFT) / 1000, -(y + _Y_SHIFT) / 1000)
     for x, y in _correctedVert
 ]
 
