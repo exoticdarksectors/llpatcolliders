@@ -294,13 +294,18 @@ _correctedVert = [
     (62050.42944708294,     -9526.196585754526),
 ]
 
-# Shift origin to CMS IP5 and convert mm → m
+# Shift origin to CMS IP5 and convert mm → m. The second survey coordinate is
+# the beam axis (CMS Z), so its offset is _Z_SHIFT (not a vertical/Y shift).
 _X_SHIFT = 11908.8279764855    # mm
-_Y_SHIFT = 13591.106147774964  # mm
+_Z_SHIFT = 13591.106147774964  # mm
 
+# Note: the beam (Z) coordinate is negated here to match the CMS +z/-z
+# convention used in the visualizations. This is a global sign flip on Z; it is
+# a reflection symmetry with no impact on any physics result (distances, path
+# lengths, decay probabilities, and rates are all invariant under z -> -z).
 correctedVertWithShift = [
-    ((x - _X_SHIFT) / 1000, (y + _Y_SHIFT) / 1000)
-    for x, y in _correctedVert
+    ((x - _X_SHIFT) / 1000, -(z + _Z_SHIFT) / 1000)
+    for x, z in _correctedVert
 ]
 
 # Vertical offset of tunnel above CMS IP (m)
