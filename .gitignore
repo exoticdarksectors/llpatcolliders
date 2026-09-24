@@ -36,3 +36,11 @@ jet*.csv
 cosmic_decay_collin_passers*.csv
 event_decay_statistics*.csv
 particle_decay_results*.csv
+
+# ---- mcp/: bulky regenerable Pythia output and compiled binaries ----
+# (the reduced results_*.json/.csv, per_event_*.json and the reach-curve CSVs
+#  under mcp/out/ stay tracked; the per-mass event dumps are ~520 MB)
+mcp/out/*.txt
+mcp/mcp_dy
+mcp/builtin_dy
+mcp/zmumu
