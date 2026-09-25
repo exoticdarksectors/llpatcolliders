@@ -389,10 +389,15 @@ with it, both now moot:
   against the ray-cast `frac(eta)` gives chi2 = 13396 over 24 bins; against
   `frac(-eta)`, chi2 = 288.  It never mattered, because the DY eta spectrum is
   symmetric, but a rebuild comes out in today's convention automatically.
-* **Its surface definition matched neither live option.**  Its closure sat at
-  0.95 of the full fiducial solid angle, where `points_on_tracker()`
-  (arch/ceiling + left wall) keeps 0.77.  Whatever "tracker" meant then covered
-  nearly the whole acceptance.
+* **Its surface definition looked wrong, but was right.**  Its closure sits at
+  0.94 of the full fiducial solid angle, where `points_on_tracker()` kept only
+  0.77 when this was first checked.  That gap was a bug in the geometry, not in
+  the array: the same z -> -z relabelling negates `right = seg_hat x y_hat`
+  (a cross product is a pseudovector), so 'Left Wall' and 'Right Wall' traded
+  physical sides and the tracker/veto assignment ended up on the wrong walls.
+  With that fixed the live `tracker` closure is 0.02389 against the array's
+  0.02384 - agreement to 0.2%.  So the hand-made array was the tracker
+  acceptance all along, computed before the flip.
 
 Switching to the live full-volume array moved `pAny` up ~6% (0.01109 -> 0.01178
 at m = 10), left `R` alone (0.2340 -> 0.2347), and strengthened `Qmin` on the
@@ -403,7 +408,7 @@ reach plot by 0.1-3.3%.
 `build_aeta.py` can also produce the tracker-only acceptance, or drop the
 fiducial inset:
 
-    python3 build_aeta.py --surface tracker   # arch/ceiling + left wall only
+    python3 build_aeta.py --surface tracker   # arch/ceiling + right wall only
     python3 build_aeta.py --inset 0           # the un-inset tunnel wall
 
 Every script reads `external/A_eta.npy` unless `MCP_AETA` names another file,
@@ -417,13 +422,15 @@ Isotropic closures:
 | A(eta) | closure | solid angle | vs default |
 |---|---|---|---|
 | `A_eta.npy` - full fiducial (default) | 0.02525 | 0.3173 sr | 1.000 |
-| `A_eta_live_tracker.npy` | 0.01924 | 0.2418 sr | 0.762 |
+| `A_eta_live_tracker.npy` | 0.02389 | 0.3002 sr | 0.946 |
 | `A_eta_2026-09-02_preflip.npy` | 0.02384 | 0.2996 sr | 0.944 |
 
-The tracker-only definition costs 24% of the rate and weakens `Qmin` by 0.5% at
-low mass, up to 12% at high mass - small at low mass because of the steep
-Poisson exponent above, growing once `eps -> 1` and the index falls to 2.  `R`
-is insensitive to the choice, since it divides by the closure of the same array.
+The tracker-only definition costs 5% of the rate and weakens `Qmin` by 0.1-3%.
+`R` is insensitive to the choice, since it divides by the closure of the same
+array.  Note the tracker option now agrees with the original hand-made array to
+0.2%, so if the reach should be quoted for tracks that are actually
+reconstructable rather than for anything crossing the volume, `tracker` is the
+physical choice and `full` is the optimistic one.
 
 `analyze.py` records `a_iso` and `a_eta` in the results, and
 `make_mcp_plot.py` re-derives the closure from that file and refuses to run if

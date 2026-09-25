@@ -364,10 +364,22 @@ mesh_fiducial, path_3d_fiducial = build_fiducial_mesh()
 # Surface classification (shared with signal_surface_hitmap.py)
 # ============================================================
 # The tunnel wall is divided into four named surfaces. In the GRENDEL
-# design the Floor and Right Wall are instrumented with scintillator
-# (hit/timing only, no tracks) while the Arch/Ceiling and Left Wall carry
-# the tracking layers. A two-body decay is only reconstructable if BOTH
-# daughters land on a tracker surface.
+# design the two IP-facing surfaces are instrumented with scintillator
+# (hit/timing only, no tracks) and act as the entry veto, while the two
+# surfaces a particle from the IP exits through carry the tracking layers.
+# A two-body decay is only reconstructable if BOTH daughters land on a
+# tracker surface.
+#
+# Which named wall is which depends on the handedness of the coordinates.
+# The local frame uses right = seg_hat x y_hat, and a cross product is a
+# pseudovector: under the z -> -z relabelling in correctedVertWithShift
+# (commit 31f8512) right is NEGATED rather than reflected, so the names
+# 'Left Wall' and 'Right Wall' trade physical sides while Floor and
+# Arch/Ceiling are unaffected. Measured along the centreline, 'Right Wall'
+# faces the IP over 21% of the tunnel length in the current convention and
+# 79% in the old one, so post-flip the far (exit) wall is 'Right Wall'.
+# The assignment below is therefore the mirror of the pre-flip one and
+# keeps the veto on the incoming side, as intended.
 
 # Centreline arc-length parametrisation
 seg_lengths = np.array(
@@ -393,8 +405,8 @@ theta_rwall_top   = _profile_angles[1 + _N_WALL]
 theta_arch_top    = _profile_angles[1 + _N_WALL + (_N_ARCH_PTS // 2)]
 theta_lwall_top   = _profile_angles[1 + _N_WALL + _N_ARCH_PTS]
 
-TRACKER_SURFACES = ('Arch/Ceiling', 'Left Wall')
-SCINTILLATOR_SURFACES = ('Floor', 'Right Wall')
+TRACKER_SURFACES = ('Arch/Ceiling', 'Right Wall')
+SCINTILLATOR_SURFACES = ('Floor', 'Left Wall')
 
 
 # ============================================================
@@ -704,9 +716,9 @@ def points_in_fiducial(points):
 def points_on_tracker(points):
     """
     Bool array: True where each (M, 3) wall point lands on a tracker
-    surface (Arch/Ceiling or Left Wall). The tracker spans the single
-    CCW arc [theta_rwall_top, theta_floor_left); the complement
-    (Floor + Right Wall) is scintillator.
+    surface (Arch/Ceiling or Right Wall). The tracker spans the single
+    CCW arc [theta_floor_right, theta_lwall_top); the complement
+    (Floor + Left Wall) is scintillator and faces the IP.
     """
     theta, _ = classify_points(points)
-    return _in_arc(theta, theta_rwall_top, theta_floor_left)
+    return _in_arc(theta, theta_floor_right, theta_lwall_top)

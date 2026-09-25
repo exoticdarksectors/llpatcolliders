@@ -8,23 +8,24 @@ directory; analyze.py and per_event.py fold the chi eta spectrum through it.
 
     python3 build_aeta.py                      # DEFAULT: whole fiducial
                                                # volume -> external/A_eta.npy
-    python3 build_aeta.py --surface tracker    # arch/ceiling + left wall only
+    python3 build_aeta.py --surface tracker    # arch/ceiling + right wall only
     python3 build_aeta.py --inset 0            # un-inset tunnel wall
 
 Output is the same (2, 48) layout as external/A_eta.npy: row 0 bin centres,
 row 1 the fraction.
 
 Surface definitions come from grendel_geometry itself:
-    tracker  points_on_tracker(), i.e. TRACKER_SURFACES = arch/ceiling + left
-             wall; the complement (floor + right wall) is scintillator veto.
+    tracker  points_on_tracker(), i.e. TRACKER_SURFACES = arch/ceiling +
+             right wall (the surfaces a particle from the IP exits through);
+             the complement, floor + left wall, is the IP-facing veto.
     full     any crossing of the fiducial volume, ignoring which face.
 
 The default is `full`: the whole fiducial volume, ignoring which face is
 crossed.  The superseded hand-made array is kept as
 external/A_eta_2026-09-02_preflip.npy -- it predates the beam-Z flip (commit
-31f8512) so its eta axis is reversed, and its closure sits at 0.95 of the full
-fiducial solid angle, matching neither live definition.  See the "Geometry
-provenance" section of README.md.
+31f8512) so its eta axis is reversed.  Its closure (0.02384) matches the
+corrected `tracker` option to 0.2%.  See the "Geometry provenance" section of
+README.md.
 """
 import argparse
 import os

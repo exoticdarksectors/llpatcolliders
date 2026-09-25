@@ -268,8 +268,11 @@ def main():
 
         handles.append(Line2D([], [], color=colour, ls=ls,
                               lw=2.4 if filled else 2.0, label=label))
-        np.savetxt(os.path.join(args.outdir,
-                                "grendel_mcp_N%d_%dPE.csv" % (nmin, npe)),
+        # The open and closed runs hold different columns, so they must not
+        # share a filename -- otherwise whichever ran last silently wins.
+        mode = "open" if args.open else "closed"
+        np.savetxt(os.path.join(args.outdir, "grendel_mcp_N%d_%dPE_%s.csv"
+                                % (nmin, npe, mode)),
                    out, delimiter=",", fmt="%.6g", header=header)
 
     ax.axhline(1 / 3, color="k", lw=.9, ls="-.", zorder=2)
