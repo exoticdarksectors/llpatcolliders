@@ -20,6 +20,18 @@ N_SIG_LEVELS = (3, 10)
 N_SIG_STYLES = ('-', '--')
 GRENDEL_COLOR = 'blue'
 
+# Two-line benchmark / run-conditions box drawn in the top-right of each panel.
+MODEL_LABEL = r'$h \to ss$ (dark scalar)'
+RUN_LABEL = (rf'GRENDEL: HL-LHC, $\mathcal{{L}} = {sig.LUMI_FB / 1000:g}$ ab$^{{-1}}$, '
+             r'$pp$ $\sqrt{s} = 14$ TeV')
+
+
+def label_box(ax, model=MODEL_LABEL, run=RUN_LABEL):
+    # Sits above the frame (right-aligned) so it never hides the limit
+    # curves, which leave through the top edge at both small and large ctau.
+    ax.text(1.0, 1.01, f'{model}\n{run}', transform=ax.transAxes,
+            ha='right', va='bottom', fontsize=10, linespacing=1.4)
+
 
 def panel(csv, mass, out, mini=False, n_sig_levels=N_SIG_LEVELS):
     geo = sig.cache_geometry(csv, mesh_fiducial, [0, 0, 0])
@@ -64,9 +76,10 @@ def panel(csv, mass, out, mini=False, n_sig_levels=N_SIG_LEVELS):
 
     ax.set_xlabel(r'$c\tau$ (m)')
     ax.set_ylabel('BR')
-    ax.set_title(f'$m = {mass}$ GeV')
+    ax.set_title(f'$m = {mass}$ GeV', loc='left')
     ax.grid(True, which='both', ls='-', alpha=0.2)
     ax.legend(fontsize=9, loc='lower right')
+    label_box(ax)
     plt.tight_layout()
     plt.savefig(out, dpi=150)
     print('wrote', out, ' best excl BR =', f"{np.nanmin(mc_scan['exclusion']):.2e}")
@@ -172,8 +185,9 @@ def plot_vtx_variable(csv, mass, out, ctau_ref=10.0,
                     for v in vtx_marks))
 
 
-panel('LLP0p5GeV.csv', 0.5, 'exclusion_panel_0p5GeV_fixCodex.png')
-panel('LLPSmall.csv', 15, 'exclusion_panel_15GeV.png')
+# Inclusive SM Higgs (HiggsSM:all) at 14 TeV, 40k events per mass.
+panel('LLP0p5GeV_14TeV.csv', 0.5, 'exclusion_panel_0p5GeV_14TeV.png')
+panel('LLP15GeV_14TeV.csv', 15, 'exclusion_panel_15GeV_14TeV.png')
 # panel('LLPSmall.csv', 15, 'exclusion_panel_15GeV_mini.png', True)
 # panel_vtx_scan('LLPSmall.csv', 15, 'exclusion_panel_15GeV_vtxscan.png')
 # plot_vtx_variable('LLPSmall.csv', 15, 'vtx_standoff_variable_15GeV.png')
