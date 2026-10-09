@@ -31,6 +31,13 @@ from reco_common import SIGMA_T_DEFAULT, CHI2_TIMING_MAX
 
 M_ELECTRON = 0.000511  # GeV/c²
 
+# Signal normalisation. Inclusive SM Higgs production at sqrt(s) = 14 TeV,
+# m_H = 125.09 GeV, from the LHC Higgs XS WG (YR4): ggF 54.61 + VBF 4.275 +
+# WH 1.510 + ZH 0.984 + ttH 0.613 + bbH 0.596 + tH 0.112 pb.
+SIGMA_H_FB = 62.7e3    # fb — inclusive sigma(pp -> H) at 14 TeV
+LUMI_FB    = 3000.0    # fb^-1 — HL-LHC integrated luminosity
+N_SIG_EXCL = 3.0       # signal events for the quoted exclusion
+
 # Analysis cuts
 P_CUT   = 0.100    # GeV/c — minimum electron momentum (track must be energetic
                    # enough to reconstruct as a straight track despite multiple
@@ -93,6 +100,14 @@ SEP_IN_POINT_GATE   = 0.10   # m (10 cm) — pointing cut applies only when sep_
 # handled by the timing chi2 cut (default 0.5 ns). Shared with the cosmic
 # background (single source).
 POINT_GLOBAL = 0.8   # rad (800 mrad)
+
+# Reconstructed vertex stand-off from the inner tracking layer. The
+# reconstructed distance from the decay vertex to the inner tracking layer is
+# d_implied = sep_inner / open_angle (the geometric identity
+# sep_inner = open_angle × (vertex → inner-layer distance)). Requiring this to
+# exceed VTX_INNER_MIN enforces a genuinely displaced vertex, standing off from
+# the first instrumented layer. 0 disables the cut.
+VTX_INNER_MIN = 0.0   # m (default off; 0.30 m = 30 cm stand-off)
 
 outString = "15GeVFixANUBIS"
 sample_csv = "LLPSmall.csv"
@@ -336,8 +351,10 @@ def analyze_decay_vs_lifetime(csv_file, geo_cache, lifetime_range,
         results['mean_at_least_one_decay_prob'].append(mean_p1)
         results['mean_at_least_one_no_cuts'].append(mean_p1_nc)
         results['mean_both_decay_prob'].append(mean_both)
-        results['exclusion'].append(3 / (mean_p1 * 3000 * 52E3))
-        results['exclusion_no_cuts'].append(3 / (mean_p1_nc * 3000 * 52E3))
+        results['exclusion'].append(
+            N_SIG_EXCL / (mean_p1 * LUMI_FB * SIGMA_H_FB))
+        results['exclusion_no_cuts'].append(
+            N_SIG_EXCL / (mean_p1_nc * LUMI_FB * SIGMA_H_FB))
         results['mean_acceptance'].append(mean_acc)
     
     return results
@@ -928,6 +945,7 @@ def selection_mask(mc, p_cut=P_CUT, sep_min=SEP_MIN, sep_max=SEP_MAX,
                    point_tight_sep_in=POINT_TIGHT_SEP_IN,
                    sep_in_point_gate=SEP_IN_POINT_GATE,
                    point_global=POINT_GLOBAL,
+                   vtx_inner_min=VTX_INNER_MIN,
                    apply_timing=True, chi2_timing_max=CHI2_TIMING_MAX):
     """
     Boolean per-sample mask for the full signal selection (everything except
@@ -955,6 +973,9 @@ def selection_mask(mc, p_cut=P_CUT, sep_min=SEP_MIN, sep_max=SEP_MAX,
     gated_pt = sep < sep_in_point_gate
     m &= (~gated_pt) | (pointing < point_tight_sep_in)
     m &= pointing < point_global
+    if vtx_inner_min > 0:
+        # Reconstructed vertex must stand off from the inner tracking layer.
+        m &= (mc['d_implied'] >= vtx_inner_min)
     if apply_timing and 'timing_chi2' in mc:
         m &= mc['timing_chi2'] < chi2_timing_max
     m &= vtx_in
@@ -1011,7 +1032,8 @@ def mc_exclusion_vs_lifetime(mc, lifetimes, total_events, **cut_kwargs):
         mean_p1.append(mean_at_least_one)
         mean_single.append(p_part.mean() if n_part else 0.0)
         if mean_at_least_one > 0:
-            exclusion.append(3 / (mean_at_least_one * 3000 * 52e3))
+            exclusion.append(
+                N_SIG_EXCL / (mean_at_least_one * LUMI_FB * SIGMA_H_FB))
         else:
             exclusion.append(np.inf)
 
@@ -1684,6 +1706,89 @@ if __name__ == "__main__":
             print(f"  No events above the gate (sep_out > "
                   f"{SEP_OUT_GATE*100:.0f} cm) for this sample.")
 
+    # --- Reconstructed vertex stand-off distribution (VTX_INNER_MIN cut) ---
+    # Reconstructed along-LLP distance from the decay vertex to the inner
+    # tracking layer, two estimators compared:
+    #   small-angle:  d = sep_in / open_angle          (the current cut variable)
+    #   exact:        d = sep_in / (2 tan(open/2))      (wide-angle-correct; the
+    #                 bisector bisects open_angle, so each track sits at open/2)
+    # 2 tan(x/2) -> x as x -> 0, so they agree for collimated decays and the
+    # small-angle form overestimates the stand-off as the opening angle widens.
+    # Shown for signal passing every OTHER cut, isolating the marginal effect.
+    if len(d_implied) > 0:
+        print("\n" + "="*50)
+        print("RECO VERTEX STAND-OFF: small-angle vs exact estimator")
+        print("="*50)
+
+        pass_other = selection_mask(mc, vtx_inner_min=0.0)
+        sep_p = seps[pass_other]
+        open_p = open_angle[pass_other]
+        wv = weights[pass_other]
+        with np.errstate(divide='ignore', invalid='ignore'):
+            d_small = np.where(open_p > 1e-9, sep_p / open_p, np.inf)
+            d_exact = np.where(open_p > 1e-9,
+                               sep_p / (2.0 * np.tan(open_p / 2.0)), np.inf)
+        marks = [0.30, 0.60, 1.00]
+        tot = wv.sum()
+
+        ests = [('small-angle  $s/\\theta$', d_small, 'steelblue'),
+                ('exact  $s/2\\tan(\\theta/2)$', d_exact, 'darkorange')]
+
+        fig_vx, axes_vx = plt.subplots(1, 2, figsize=(12, 5))
+
+        # Left: decay-weighted distributions of both estimators.
+        ax = axes_vx[0]
+        xmax = 2.0
+        bins = np.linspace(0, xmax * 100, 60)
+        for lbl, dv, color in ests:
+            fin = np.isfinite(dv)
+            ax.hist(np.clip(dv[fin] * 100, 0, xmax * 100), bins=bins,
+                    weights=wv[fin], histtype='step', linewidth=2, color=color,
+                    label=lbl)
+        for vm in marks:
+            ax.axvline(vm * 100, color='crimson', linestyle='--', linewidth=1.2)
+        if VTX_INNER_MIN > 0:
+            ax.axvline(VTX_INNER_MIN * 100, color='black', linewidth=2,
+                       label=f'active cut = {VTX_INNER_MIN*100:.0f} cm')
+        ax.set_xlabel('reco vertex stand-off along LLP (cm)')
+        ax.set_ylabel('Weighted counts (decay prob.)')
+        ax.set_title(f'Vertex stand-off (τ = {lifetime*1e9:.0f} ns), passing all other cuts')
+        ax.set_xlim(0, xmax * 100)
+        ax.legend(fontsize=9)
+        ax.grid(True, alpha=0.3)
+
+        # Right: signal efficiency retained vs the stand-off requirement.
+        ax2 = axes_vx[1]
+        thr = np.linspace(0, xmax, 200)
+        for lbl, dv, color in ests:
+            eff = np.array([wv[dv >= t].sum() / tot for t in thr]) if tot > 0 \
+                else np.zeros_like(thr)
+            ax2.plot(thr * 100, eff, color=color, linewidth=2, label=lbl)
+            for vm in marks:
+                e = wv[dv >= vm].sum() / tot if tot > 0 else 0
+                ax2.plot([vm * 100], [e], 'o', color=color, ms=5)
+        for vm in marks:
+            ax2.axvline(vm * 100, color='crimson', linestyle='--', linewidth=1)
+        ax2.set_xlabel('reco vertex stand-off requirement (cm)')
+        ax2.set_ylabel('signal efficiency retained')
+        ax2.set_title('Marginal impact: small-angle vs exact')
+        ax2.set_xlim(0, xmax * 100)
+        ax2.set_ylim(0, 1.02)
+        ax2.legend(fontsize=9)
+        ax2.grid(True, alpha=0.3)
+
+        plt.tight_layout()
+        plt.savefig(os.path.join(OUT_DIR, 'vtx_standoff_' + outString + '.png'),
+                    dpi=150)
+        show_or_close()
+
+        if tot > 0:
+            for lbl, dv, _ in ests:
+                lbl_txt = 'small-angle' if 'small' in lbl else 'exact      '
+                print(f"  {lbl_txt} eff vs stand-off: "
+                      + ", ".join(f"{v*100:.0f}cm={wv[dv>=v].sum()/tot:.3f}"
+                                  for v in marks))
+
     # --- Cutflow table ---
     if len(seps) > 0:
         print("\n" + "="*50)
@@ -1920,7 +2025,7 @@ if __name__ == "__main__":
         ax4.legend(fontsize=8, loc='lower right')
         ax4.set_ylim([1E-5,1])
     elif df_results['mass'].iloc[0] == 0.5:
-        ext["CODEX"] = np.loadtxt("external/CODEX0p5.csv", delimiter=",")
+        ext["CODEX"] = np.loadtxt("external/CODEX0p5_2.csv", delimiter=",")
     
         ax4.loglog(ext["CODEX"][:, 0], ext["CODEX"][:, 1],
                    color="cyan", linewidth=2,linestyle="--", label="CODEX-b")
